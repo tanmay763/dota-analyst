@@ -4,8 +4,7 @@ Mechanical, question-agnostic knowledge about the Stratz API: field semantics,
 traps, working query shapes. Read on demand; check here before exploring the
 schema for a topic. Append new durable discoveries as new entries (the "Learn"
 step of the skill loop). Policy — metric definitions, standing filters,
-suggested analyses — does **not** belong here; that's the deferred semantic
-layer (see DESIGN.md).
+suggested analyses — does **not** belong here.
 
 ## heroStats.winWeek
 
