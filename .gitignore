@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude Code local (personal) settings
+.claude/settings.local.json
+
+# Local data cache and derived tables (see DESIGN.md)
+data/raw/
+data/flattened/
+data/marts/
+data/warehouse.duckdb
