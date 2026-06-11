@@ -29,6 +29,27 @@ suggested analyses — does **not** belong here.
   }
   ```
 
+## match / matches (per-match data)
+
+- **`matches(ids: [Long]!)` is admin-gated** — any selection (even just `id`)
+  returns `{"message": "User is not an admin."}`. It also caps at 10 ids
+  (`"Requesting Too Many MatchIds. Max Request Size 10."`). For a normal token,
+  **loop the singular `match(id: Long!)` query** instead — one cache entry per
+  match id, so re-runs are free.
+- `match.players[]` is the clean source for picks/wins: `heroId`, `isRadiant`,
+  `isVictory` (per player slot — true for all 5 winners), `position`
+  (`POSITION_1`..`POSITION_5`). 10 rows per match.
+- `match.pickBans[]` is the captains-mode draft. Each row has `isPick`,
+  `order`, `isRadiant`. **Bans are the `isPick = false` rows; the banned hero is
+  in `bannedHeroId`** (not `heroId` — on ban rows `heroId` mirrors
+  `bannedHeroId`). Picks (`isPick = true`) duplicate the `players` roster.
+- Tournament/league aggregate: filtering `match.players` by `heroId` gives
+  pick count; `sum(isVictory)` gives wins; `pickBans` gives bans. Denominator
+  for pick/ban/contest rates = number of matches (one game = 10 picks).
+- `league(id: Int!)` returned `null` for a valid leagueId (19101) on this token
+  — don't rely on it to label a tournament; the shared `leagueId` across the
+  match set is sufficient confirmation.
+
 ## constants.heroes
 
 - `query { constants { heroes { id displayName } } }` → ~127-row id→name map
