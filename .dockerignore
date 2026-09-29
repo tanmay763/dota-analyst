@@ -1,0 +1,7 @@
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!.claude/skills/stratz-analysis/references/
+**/__pycache__

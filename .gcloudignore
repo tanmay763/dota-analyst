@@ -1,0 +1,21 @@
+# What `gcloud run deploy --source .` uploads: the Dockerfile's inputs, nothing else.
+# (.dockerignore narrows the Docker build context the same way.)
+.git
+.gitignore
+.venv/
+.pytest_cache/
+.ruff_cache/
+**/__pycache__/
+.env
+data/
+analyses/
+tests/
+plugin/
+docs/
+.claude-plugin/
+.claude/settings.local.json
+.claude/skills/stratz-analysis/scripts/
+CLAUDE.md
+CONTEXT.md
+LICENSE
+Makefile

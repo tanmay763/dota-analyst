@@ -1,0 +1,15 @@
+{
+  "name": "dota-analyst",
+  "description": "Dota 2 analysis from Stratz and in-game hero grids, for Claude.",
+  "owner": {
+    "name": "Tanmay Shrivastava",
+    "url": "https://github.com/tanmay763"
+  },
+  "plugins": [
+    {
+      "name": "dota-analyst",
+      "source": "./plugin",
+      "description": "Analyse Dota 2 statistics from Stratz with Claude, then turn the results into an in-game hero grid."
+    }
+  ]
+}

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hero grid preview</title>
+<!--
+  The MCP App behind build_hero_grid (ADR 0006): a read-only preview of the hero grid, drawn
+  the way the game draws it. Card geometry is ported from ../dota/src/dota/web/static/grid.js;
+  tests/test_ui.py keeps its constants equal to src/dota_analyst_mcp/layout.py. It speaks the
+  MCP Apps postMessage protocol (ui/initialize, ui/notifications/tool-result, ui/open-link)
+  without an SDK, so the page loads nothing but hero portraits.
+-->
+<style>
+:root {
+  --bg: #15100c;
+  --surface: #221913;
+  --line: #3a2d23;
+  --text: #e7dfd3;
+  --muted: #9aa2b4;
+  --accent: #c8412d;
+  --label: #8e99b0; /* in-game category labels */
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { padding: 12px; }
+.toolbar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+select {
+  flex: 1; min-width: 0; padding: 6px 8px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 4px; font: inherit;
+}
+button {
+  padding: 6px 14px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; font: inherit; cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+.status { color: var(--muted); }
+.warnings { color: #e0b070; font-size: 0.9em; margin: 8px 0 0; padding-left: 18px; }
+.warnings:empty { display: none; }
+.board-frame {
+  border-radius: 6px;
+  background: radial-gradient(ellipse at 30% 20%, #2b1f16 0%, #17110c 70%);
+  padding: 1.5%;
+}
+/* One grid unit (the game's 1200-wide space) is 1/1200 of the board's width. */
+.board { position: relative; width: 100%; container-type: inline-size; }
+.board * { --u: calc(100cqw / 1200); }
+.board > *, .category > * { position: absolute; }
+.category { overflow: hidden; }
+.category-label {
+  display: block;
+  padding-top: calc(var(--u) * 1);
+  padding-bottom: calc(var(--u) * 2);
+  font-size: calc(var(--u) * 11);
+  line-height: 1;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card {
+  overflow: hidden;
+  background: #332820;
+  box-shadow: 0 calc(var(--u) * 1) calc(var(--u) * 2) rgb(0 0 0 / 0.6);
+  font-size: calc(var(--u) * 5);
+  color: var(--muted);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  text-align: center;
+}
+.card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+</style>
+</head>
+<body>
+<main>
+  <div class="toolbar">
+    <select id="layouts" aria-label="Layout"></select>
+    <button id="download" type="button" disabled>Download</button>
+  </div>
+  <p class="status" id="status">Waiting for the grid…</p>
+  <div class="board-frame" hidden id="frame"><div class="board" id="board"></div></div>
+  <ul class="warnings" id="warnings"></ul>
+</main>
+<script>
+const CANVAS_WIDTH = 1200;
+const SCREEN_HEIGHT = 600;
+const TITLE_HEIGHT = 14.1;
+const AREA_MARGIN = 12.5;
+const CARD_INSET = 2.6;
+const CARD_MAX = 35.2;
+const CARD_MIN = 21.3;
+const CARD_ASPECT = 140 / 81;
+const GAP_RATIO = 0.19;
+
+const CDN = "https://cdn.steamstatic.com/apps/dota2/images";
+// Tall portraits, like the game's cards; heroes newer than Valve's last batch of them
+// fall back to the landscape art.
+const PORTRAIT = (shortName) => `${CDN}/heroes/${shortName}_vert.jpg`;
+const FALLBACK = (shortName) => `${CDN}/dota_react/heroes/${shortName}.png`;
+
+// The game's card width: all heroes in one row, clamped to the card size range.
+function cardWidth(area, heroes) {
+  const fit = area / (heroes * (1 + GAP_RATIO) - GAP_RATIO);
+  return Math.max(CARD_MIN, Math.min(CARD_MAX, fit));
+}
+
+// The epsilon keeps cards sized to fit exactly from computing as 4.999 per row.
+function cardsPerRow(area, width) {
+  return Math.max(1, Math.floor((area + GAP_RATIO * width) / (width * (1 + GAP_RATIO)) + 1e-9));
+}
+
+// Labels show upper-cased with underscores as spaces, as in game.
+const label = (name) => name.replaceAll("_", " ").toUpperCase();
+
+function place(el, x, y, w, h) {
+  el.style.left = `calc(var(--u) * ${x})`;
+  el.style.top = `calc(var(--u) * ${y})`;
+  el.style.width = `calc(var(--u) * ${w})`;
+  if (h !== undefined) el.style.height = `calc(var(--u) * ${h})`;
+}
+
+// Draw one layout (a Valve config) into `board`; `heroes` maps id -> {name, short_name}.
+function drawLayout(board, config, heroes) {
+  const categories = config?.categories ?? [];
+  const bottom = Math.max(SCREEN_HEIGHT, ...categories.map((c) => c.y_position + c.height));
+  board.style.aspectRatio = `${CANVAS_WIDTH} / ${bottom}`;
+  const nodes = [];
+  for (const c of categories) {
+    const box = document.createElement("div");
+    box.className = "category";
+    place(box, c.x_position, c.y_position, c.width, c.height);
+    const title = document.createElement("div");
+    title.className = "category-label";
+    title.textContent = label(c.category_name);
+    place(title, CARD_INSET, 0, c.width - CARD_INSET, TITLE_HEIGHT);
+    box.append(title);
+    nodes.push(box);
+
+    const area = c.width - AREA_MARGIN;
+    const n = c.hero_ids.length;
+    if (!n) continue;
+    const w = cardWidth(area, n);
+    const h = w * CARD_ASPECT;
+    const gap = w * GAP_RATIO;
+    const perRow = cardsPerRow(area, w);
+    c.hero_ids.forEach((id, i) => {
+      const hero = heroes[String(id)];
+      const card = document.createElement("div");
+      card.className = "card";
+      card.title = hero?.name ?? `Hero ${id}`;
+      place(card, CARD_INSET + (i % perRow) * (w + gap), TITLE_HEIGHT + Math.floor(i / perRow) * (h + gap), w, h);
+      if (hero?.short_name) {
+        const img = document.createElement("img");
+        img.src = PORTRAIT(hero.short_name);
+        img.alt = hero.name;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.onerror = () => {
+          if (img.dataset.fallback) img.remove(); // the name stays as the card's text
+          else img.src = img.dataset.fallback = FALLBACK(hero.short_name);
+        };
+        card.append(img);
+      }
+      const name = document.createElement("span");
+      name.textContent = hero?.name ?? id;
+      card.append(name);
+      box.append(card);
+    });
+  }
+  board.replaceChildren(...nodes);
+}
+
+// --- MCP Apps: JSON-RPC over postMessage with the host --------------------------------
+let nextId = 1;
+const pending = new Map();
+
+function request(method, params) {
+  const id = nextId++;
+  window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+  return new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+}
+
+function notify(method, params) {
+  window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
+}
+
+const els = {
+  layouts: document.getElementById("layouts"),
+  download: document.getElementById("download"),
+  status: document.getElementById("status"),
+  frame: document.getElementById("frame"),
+  board: document.getElementById("board"),
+  warnings: document.getElementById("warnings"),
+};
+let current = null;
+
+function show(result) {
+  const data = result?.structuredContent;
+  if (!data?.grid?.configs?.length) {
+    els.status.textContent = "No grid in this result.";
+    return;
+  }
+  current = data;
+  const selected = els.layouts.value;
+  els.layouts.replaceChildren(
+    ...data.grid.configs.map((c, i) => new Option(c.config_name, String(i))),
+  );
+  if (selected && Number(selected) < data.grid.configs.length) els.layouts.value = selected;
+  els.warnings.replaceChildren(
+    ...(data.warnings ?? []).map((w) => Object.assign(document.createElement("li"), { textContent: w })),
+  );
+  els.status.hidden = true;
+  els.frame.hidden = false;
+  els.download.disabled = !data.download_url;
+  draw();
+}
+
+function draw() {
+  if (!current) return;
+  drawLayout(els.board, current.grid.configs[Number(els.layouts.value) || 0], current.heroes ?? {});
+}
+
+els.layouts.addEventListener("change", draw);
+els.download.addEventListener("click", async () => {
+  if (!current?.download_url) return;
+  try {
+    await request("ui/open-link", { url: current.download_url });
+  } catch {
+    els.status.hidden = false;
+    els.status.textContent = `Couldn't open the download. Link: ${current.download_url}`;
+  }
+});
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window.parent) return;
+  const msg = event.data;
+  if (!msg || msg.jsonrpc !== "2.0") return;
+  if (msg.id !== undefined && pending.has(msg.id) && !msg.method) {
+    const { resolve, reject } = pending.get(msg.id);
+    pending.delete(msg.id);
+    msg.error ? reject(new Error(msg.error.message ?? "request failed")) : resolve(msg.result);
+    return;
+  }
+  if (msg.method === "ui/notifications/tool-result") show(msg.params);
+  else if (msg.method === "ui/resource-teardown" && msg.id !== undefined) {
+    window.parent.postMessage({ jsonrpc: "2.0", id: msg.id, result: {} }, "*");
+  } else if (msg.method === "ping" && msg.id !== undefined) {
+    window.parent.postMessage({ jsonrpc: "2.0", id: msg.id, result: {} }, "*");
+  }
+});
+
+new ResizeObserver(() => {
+  notify("ui/notifications/size-changed", {
+    width: Math.ceil(document.documentElement.scrollWidth),
+    height: Math.ceil(document.documentElement.scrollHeight),
+  });
+}).observe(document.body);
+
+// The host validates these params: `appInfo` (not MCP's `clientInfo`) is required.
+request("ui/initialize", {
+  appInfo: { name: "dota-analyst-hero-grid", version: "1.0.0" },
+  appCapabilities: { availableDisplayModes: ["inline"] },
+  protocolVersion: "2026-01-26",
+})
+  .then(() => notify("ui/notifications/initialized", {}))
+  .catch(() => {
+    els.status.textContent = "This host couldn't start the preview; use the download link in the reply.";
+  });
+</script>
+</body>
+</html>
