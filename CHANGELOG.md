@@ -7,6 +7,10 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 ## [Unreleased]
 
+### Changed
+
+- The plugin README says the hero grid preview loads portraits from Steam's CDN.
+
 ## [0.1.1] - 2026-09-29
 
 ### Added
