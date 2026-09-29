@@ -21,5 +21,7 @@ by rank, position and patch, matchups, items, lanes, a player's matches, pro lea
 Your Stratz queries run on your own Stratz token, on the plugin's server. The token is
 sealed inside your sign-in and never stored. Stratz responses are cached on the server
 for up to 7 days, separately for each user, and only summaries and query results reach
-the conversation. Hero grid download links carry the grid itself and nothing else.
+the conversation. Hero grid download links carry the grid itself and nothing else. The
+hero grid preview loads hero portraits straight from Valve's Steam CDN
+(`cdn.steamstatic.com`) in your browser.
 Source: https://github.com/tanmay763/dota-analyst
