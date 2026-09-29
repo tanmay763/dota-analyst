@@ -222,5 +222,8 @@ __marimo__/
 # Claude Code local (personal) settings
 .claude/settings.local.json
 
+# The Makefile's deployment specifics (local.mk.example)
+local.mk
+
 # Local data cache, derived tables and the MCP server's local state (docs/adr/0004)
 data/

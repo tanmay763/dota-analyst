@@ -7,6 +7,21 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-29
+
+### Added
+
+- `make release-check` and `make release`: check that `main`, the versions and the
+  changelog are ready, then tag, push and publish the GitHub release
+  (`scripts/release.py`).
+- A $10/month budget alert on the server's resources, counting cost before credits.
+
+### Changed
+
+- The server runs at most one instance, which caps the cost of a flood.
+- The GCP project and gcloud configuration moved from the Makefile and docs into a
+  gitignored `local.mk` (`local.mk.example` shows the shape).
+
 ## [0.1.0] - 2026-09-29
 
 The first release: Dota 2 analysis from Stratz as a Claude plugin, with in-game hero
@@ -62,5 +77,6 @@ These were caught while testing before the release:
   hosts require `appInfo`, and the tool lacked the flat `ui/resourceUri` key that some
   hosts read.
 
-[Unreleased]: https://github.com/tanmay763/dota-analyst/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tanmay763/dota-analyst/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/tanmay763/dota-analyst/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tanmay763/dota-analyst/releases/tag/v0.1.0

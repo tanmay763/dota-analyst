@@ -7,19 +7,19 @@ and it points at the server through `plugin/.mcp.json`.
 | | MCP server |
 |---|---|
 | **What** | `dota_analyst_mcp.app`: Stratz tools, sign-in with a user's own Stratz token, the hero grid app and download links |
-| **Host** | Cloud Run service `dota-analyst-mcp`, `asia-south1`, project `<gcp-project>` |
-| **URL** | `https://dota-analyst-mcp-rpuldjax7a-el.a.run.app` (MCP endpoint `/mcp`) |
-| **Scaling** | min 0, max 3 instances, 1 GiB, request-based billing, `--cpu-boost`. An instance starts in about 3.6 s |
+| **Host** | Cloud Run service `dota-analyst-mcp`, `asia-south1`, in the GCP project named in `local.mk` |
+| **URL** | `https://dota-analyst-mcp-rpuldjax7a-el.a.run.app` (MCP endpoint `/mcp`), Cloud Run's hash-form URL, which doesn't reveal the project |
+| **Scaling** | min 0, max 1 instance, 1 GiB, request-based billing, `--cpu-boost`. An instance starts in about 3.6 s |
 | **Build** | `Dockerfile`: `uv sync --frozen --no-dev` on `python:3.13-slim`, built by Cloud Build from `gcloud run deploy --source .` |
 | **Deploys** | By hand: `make deploy`. Nothing deploys automatically |
 | **GCP identity** | Service account `dota-analyst-mcp` |
 | **Secrets** | `DOTA_ANALYST_SEAL_KEYS`, from Secret Manager. There is no Stratz token: every user brings their own (ADR 0002) |
-| **Cost** | Inside Cloud Run's free tier at a few users; the bucket holds megabytes |
+| **Cost** | Inside Cloud Run's free tier at a few users; the bucket holds megabytes. A $10/month budget alert watches for floods (below) |
 
 ## Google Cloud resources
 
-All in `<gcp-project>`, shared with `../dota` but separate from its accounts
-and buckets. The service account has only what the server uses (the `../dota` ADR 0011
+All in one GCP project, named in `local.mk` and shared with `../dota`, but separate from
+its accounts and buckets. The service account has only what the server uses (the `../dota` ADR 0011
 pattern):
 
 | Resource | What it holds | Access |
@@ -33,12 +33,17 @@ The bucket's lifecycle rules delete `cache/` and `constants/` objects after 7 da
 `jti/` after 90. Those ages match the cache TTL and the refresh-token lifetime; don't
 shorten `jti/` below the refresh-token lifetime, or a used token could be replayed.
 
-## gcloud
+## gcloud and `local.mk`
 
-Every gcloud command uses the personal credentials in `~/.config/gcloud-personal`, never the
-company ones. The Makefile sets `CLOUDSDK_CONFIG` for its own targets. Before any
-gcloud work, run `make gcloud-status`: it must show `your personal account` and the project.
-If the login is stale, run `CLOUDSDK_CONFIG=~/.config/gcloud-personal gcloud auth login`.
+The GCP project and the gcloud configuration directory are kept out of the public repo, in
+a gitignored `local.mk` (copy `local.mk.example`). The Makefile reads them, and its gcloud
+targets stop with a hint when `local.mk` is missing.
+
+Every gcloud command uses the personal credentials in `$(GCLOUD_CONFIG)`, never the
+company ones; the Makefile sets `CLOUDSDK_CONFIG` for its own targets. Before any gcloud
+work, run `make gcloud-status`: it must show your personal account and the project. If the
+login is stale, run `CLOUDSDK_CONFIG=<GCLOUD_CONFIG> gcloud auth login`. The commands
+below write `<project>` and `<GCLOUD_CONFIG>` for the values in `local.mk`.
 
 ## Deploying
 
@@ -51,13 +56,15 @@ make deploy        # build with Cloud Build, roll out a new revision
 
 | Variable | Value | Why |
 |---|---|---|
-| `PUBLIC_URL` | the service URL above | The OAuth issuer and the resource `/mcp` must match the URL exactly |
+| `PUBLIC_URL` | the hash-form URL above | The OAuth issuer and the resource `/mcp` must match the URL exactly; sign-ins are bound to it, so changing it means everyone reconnects |
 | `DOTA_ANALYST_BUCKET` | `dota-analyst-mcp` | Where state lives; without it the server uses a local directory |
 | `DOTA_ANALYST_SEAL_KEYS` | `dota-analyst-mcp-seal-keys:latest` | Mounted from Secret Manager |
 
+It also labels the service `app=dota-analyst-mcp`, which the budget filters on.
+
 `.gcloudignore` limits the upload to the build's inputs (`src/`, the lockfile, the
-Dockerfile and the maintainer skill's `references/`), so `.env` and `data/` never leave
-the machine.
+Dockerfile and the maintainer skill's `references/`), so `.env`, `local.mk` and `data/`
+never leave the machine.
 
 **Cookbook changes ship with a deploy.** The image copies
 `.claude/skills/stratz-analysis/references/` (ADR 0009), so after the maintainer teaches
@@ -72,11 +79,27 @@ Versions follow semver and are shared by the plugin and the server:
 
 1. Raise `version` in `pyproject.toml` and `plugin/.claude-plugin/plugin.json` together,
    and run `uv lock`. `tests/test_release.py` fails if they differ.
-2. Move the `[Unreleased]` notes in `CHANGELOG.md` under the new version and date.
+2. Move the `[Unreleased]` notes in `CHANGELOG.md` under `## [X.Y.Z] - YYYY-MM-DD`, and add
+   the version's link at the bottom.
 3. Merge to `main` through a pull request, then `make deploy`. The server reports the
    version in its MCP server info.
-4. Tag the merge commit `vX.Y.Z` and publish a GitHub release with the changelog entry
-   as its notes.
+4. On the merged `main`, run `make release-check`, then `make release`. It checks that
+   `main` is clean and matches `origin/main`, that the versions agree, that the changelog
+   has the section, and that the tag is new, and it runs the tests and lint. Then it tags
+   `vX.Y.Z`, pushes the tag, and publishes the GitHub release with that changelog section
+   as the notes (`scripts/release.py`).
+
+## Budget alert
+
+A $10/month budget on the project's billing account emails the billing admins at 50%, 90%
+and 100%. It counts **gross** cost, with credits excluded (otherwise the project's credits
+would hide a flood), and only resources labelled `app=dota-analyst-mcp`. Normal use is
+about $0, so any alert means unusual traffic. A sustained flood is capped by
+`max-instances=1` at roughly one instance-month (about $70). To look at it:
+
+```sh
+CLOUDSDK_CONFIG=<GCLOUD_CONFIG> gcloud billing budgets list --billing-account=<billing account>
+```
 
 ## Rotating the sealing keys
 
@@ -86,8 +109,8 @@ after 90 days. To sign everyone out at once (e.g. a leaked key), add a version w
 a new key and deploy. Users reconnect and paste their Stratz token again.
 
 ```sh
-CLOUDSDK_CONFIG=~/.config/gcloud-personal gcloud secrets versions add dota-analyst-mcp-seal-keys \
-  --project=<gcp-project> --data-file=- <<< "$(uv run python -c \
+CLOUDSDK_CONFIG=<GCLOUD_CONFIG> gcloud secrets versions add dota-analyst-mcp-seal-keys \
+  --project=<project> --data-file=- <<< "$(uv run python -c \
   'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode(), end="")'),<old key>"
 make deploy
 ```
@@ -113,7 +136,6 @@ make deploy
 - **Every user is signed out.** The sealing keys changed without keeping the old key, or
   the secret wasn't mounted (the logs warn that `DOTA_ANALYST_SEAL_KEYS` is unset).
 - **"This sign-in link expired."** The connect page lasts 15 minutes; start connecting again.
-- **Logs:** `CLOUDSDK_CONFIG=~/.config/gcloud-personal gcloud logging read
-  'resource.labels.service_name="dota-analyst-mcp"' --project=<gcp-project>
-  --freshness=1h`. The server never logs Stratz tokens. Sealed blobs appear in URLs but
+- **Logs:** `CLOUDSDK_CONFIG=<GCLOUD_CONFIG> gcloud logging read
+  'resource.labels.service_name="dota-analyst-mcp"' --project=<project> --freshness=1h`. The server never logs Stratz tokens. Sealed blobs appear in URLs but
   can't be opened without the keys.

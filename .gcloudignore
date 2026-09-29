@@ -19,3 +19,7 @@ CLAUDE.md
 CONTEXT.md
 LICENSE
 Makefile
+local.mk
+local.mk.example
+CHANGELOG.md
+scripts/
