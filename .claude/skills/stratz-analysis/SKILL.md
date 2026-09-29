@@ -1,10 +1,12 @@
 ---
 name: stratz-analysis
 description: >-
-  Analyze Dota 2 statistics via the Stratz GraphQL API. Use when the user asks
-  about Dota 2 data of any kind — hero win/pick rates, meta trends, player or
-  match performance, leagues, items, lanes, brackets — or wants an analysis,
-  table, or report built from Stratz data.
+  Analyze Dota 2 statistics via the Stratz GraphQL API with local files, for work in
+  the dota-analyst repo. Use when the user asks about Dota 2 data of any kind (hero
+  win/pick rates, meta trends, player or match performance, leagues, items, lanes,
+  ranks) or wants an analysis, table, or report built from Stratz data. This is the
+  maintainer's skill: its references/ (schema, cookbook) are what the plugin's MCP
+  server serves, so cookbook entries learned here reach plugin users on deploy.
 ---
 
 # Stratz Dota 2 Analysis
@@ -45,9 +47,12 @@ Requires `STRATZ_TOKEN` in the environment or repo `.env`. Run everything with
    `LIMIT 5`, `count(*)`, `count(DISTINCT col)`, `min/max` of keys and dates,
    e.g. `duckdb -c "SELECT * FROM 'data/flattened/<name>.parquet' LIMIT 5"`.
 5. **Iterate**: let what the peek revealed drive the next query; repeat 2–4.
-6. **Deliver**: consolidate into one reproducible script in `analyses/` that
-   runs end-to-end from the raw cache, plus its printed output (e.g. a top-10
-   table). Intermediate exploration snippets don't need to survive.
+6. **Deliver**: file it as `analyses/<name>/` (see "Filing an analysis" in the
+   repo's `CLAUDE.md`): one reproducible `<name>.py` that runs end-to-end from
+   the raw cache, a `<name>.context.json` holding the user's prompt verbatim
+   (started with the first prompt, not at the end), and a dated report
+   `<name>_YYYY-MM-DD.md` carrying every number that matters. Intermediate
+   exploration snippets don't need to survive.
 7. **Learn**: append durable, question-agnostic discoveries — field semantics,
    traps, working query shapes — to `references/cookbook.md` as entries under
    the API path they describe. Skip anything question-specific or policy-like

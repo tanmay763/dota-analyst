@@ -1,0 +1,54 @@
+{
+  "analysis": "blast_slam_vii",
+  "script": "analyses/blast_slam_vii/blast_slam_vii.py",
+  "context_recorded_on": "2026-09-29",
+  "original_user_prompt": null,
+  "user_clarifications": [],
+  "prompt_provenance": {
+    "status": "unavailable",
+    "note": "The analysis was built on 2026-06-11 in a Claude Code session at ~/Desktop/python/dota-analyst. That path has no transcript left in ~/.claude/projects or ~/.claude-personal/projects (transcripts older than 30 days are cleaned up; only MCP log caches remain), so the prompt and any clarifications are lost. The empty clarification list is not evidence that there were none. Everything below is inferred from the script, its docstring and git history."
+  },
+  "evidence": [
+    "Commit e60e03d (2026-06-11): 'Removed DESIGN.md reference from cookbook.md and analyzed Blast Slam VII tournament picks and bans'.",
+    "The script's docstring: metric definitions and the note that matches were fetched one id at a time via match(id:)."
+  ],
+  "interpreted_question": {
+    "text": "Which heroes were picked, banned and contested most at BLAST Slam VII, and which won most and least?",
+    "provenance": "Inferred from the commit message and the script's output sections."
+  },
+  "requested_scope": null,
+  "implemented_scope": {
+    "tournament": "BLAST Slam VII, Stratz leagueId 19101",
+    "matches": "102 matches, each fetched with the singular match(id:) query (the plural matches(ids:) is admin-gated) and combined into data/raw/bs7_matches_combined.json",
+    "hero_names": "data/raw/heroes_const.json (constants.heroes)",
+    "grain": "hero; denominator = drafted games (102)"
+  },
+  "methodological_choices": [
+    "A pick is one player slot with the hero; a win is a pick whose slot won.",
+    "A ban is a pickBans row with isPick = false.",
+    "Contest = picks + bans; pick, ban and contest rates are over games.",
+    "Win-rate rankings require at least 5 picks.",
+    "Sanity checks: total picks = 10 per game, total wins = 5 per game."
+  ],
+  "rerun": {
+    "command": "uv run analyses/blast_slam_vii/blast_slam_vii.py",
+    "requirements": "data/raw/bs7_matches_combined.json and data/raw/heroes_const.json; no network, no token.",
+    "repeatability_note": "The script reads only the two cached files, so a rerun reproduces the recorded numbers exactly while they exist. There is no script that builds bs7_matches_combined.json: if data/ is deleted, the analysis can't be rebuilt without rewriting the fetch (the list of 102 match ids isn't recorded either)."
+  },
+  "runs": [
+    {
+      "run_on": "2026-06-11",
+      "code_revision": "e60e03d",
+      "report": null,
+      "note": "Original run; no report was saved."
+    },
+    {
+      "run_on": "2026-09-29",
+      "code_revision": "e60e03d plus the uncommitted move to analyses/blast_slam_vii/ (paths only)",
+      "input": "data/raw/bs7_matches_combined.json (written 2026-06-11)",
+      "report": "analyses/blast_slam_vii/blast_slam_vii_2026-09-29.md",
+      "output": null,
+      "top": "Most contested: Lone Druid 98 (96.1%), Clockwerk 97, Puck 86; most picked Hoodwink 46; most banned Lone Druid 90"
+    }
+  ]
+}

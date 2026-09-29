@@ -7,7 +7,7 @@ and out of LLM context:
     uv run .claude/skills/stratz-analysis/scripts/client.py \
         --query 'query { ... }' [--variables '{"k": 1}'] [--ttl-days 7]
 
-Rules (see DESIGN.md): never embed "now"/current timestamps in the query text
+Rules (see ../SKILL.md): never embed "now"/current timestamps in the query text
 (kills cache hits); pass changing values as variables only if they must change.
 """
 

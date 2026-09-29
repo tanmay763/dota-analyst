@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "dota-analyst": {
+      "type": "http",
+      "url": "https://dota-analyst-mcp-rpuldjax7a-el.a.run.app/mcp"
+    }
+  }
+}

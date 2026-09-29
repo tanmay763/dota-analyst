@@ -6,7 +6,8 @@ the match-weighted mean win rate ≈ 50% per bracket, and prints the top 5
 heroes by win rate per bracket for the latest complete week (hero-week cells
 with matchCount < 200 suppressed).
 
-Run from the repo root: uv run analyses/weekly_winrates_by_bracket.py
+Run from the repo root: uv run analyses/weekly_winrates_by_bracket/weekly_winrates_by_bracket.py
+Provenance: weekly_winrates_by_bracket.context.json.
 """
 
 import sys
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import duckdb
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / ".claude/skills/stratz-analysis/scripts"))
 from client import cache_path, fetch  # noqa: E402
 

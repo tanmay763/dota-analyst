@@ -1,0 +1,90 @@
+{
+  "analysis": "ti2026",
+  "scripts": {
+    "fetch": "analyses/ti2026/ti2026_fetch.py",
+    "report": "analyses/ti2026/ti2026_report.py",
+    "scouting": "analyses/ti2026/ti2026_scouting.py",
+    "scouting_page": "analyses/ti2026/ti2026_scouting_page.py"
+  },
+  "context_recorded_on": "2026-09-29",
+  "original_user_prompt": null,
+  "user_clarifications": [],
+  "prompt_provenance": {
+    "status": "unavailable",
+    "note": "Built between 2026-08-19 and 2026-08-23 in Claude Code sessions at ~/python/dota-analyst, whose transcripts no longer exist (transcripts older than 30 days are cleaned up; only MCP log caches remain). The empty clarification list is not evidence that there were none. The scripts were never committed. Scope and runs below are inferred from the scripts' docstrings and recovered from the saved outputs, which are evidence of what was run."
+  },
+  "interpreted_question": {
+    "text": "Across The International 2026: which heroes were picked, banned and contested, how did teams and players perform, and, for upcoming series, each team's hero pools, the contested pool by position, and first-phase ban predictions (draft-board pages).",
+    "provenance": "Inferred from the four scripts' docstrings and the saved outputs."
+  },
+  "requested_scope": null,
+  "implemented_scope": {
+    "tournament": "The International 2026 (TI15), Shanghai, 2026-08-13..08-23, patch 7.41e, 16 teams; Stratz leagueId 19719",
+    "discovery": "league(id: 19719) is null in Stratz, so matches are found by crawling player(steamAccountId).matches(request: {leagueId: 19719}) from one participant to closure, then fetched one id at a time with match(id:) (see ti2026_fetch.py)",
+    "input": "data/raw/ti2026_matches_combined.json; data/raw/heroes_const.json",
+    "report_grain": "heroes: picks, wins, bans (split by draft phase), contest; teams: series and game records; players: one row per player slot",
+    "scouting_grain": "one row per player per hero in chronological order; with two teams, the contested pool overall and by each hero's modal tournament position, and a first-phase ban prediction"
+  },
+  "methodological_choices": [
+    "A pick is one player slot; a ban is a pickBans row with isPick = false; contest = picks + bans, over games.",
+    "Draft phases are taken from pickBans.order: phase 1 = slots 0-6, phase 2 = 9-11, phase 3 = 18-21.",
+    "A series is grouped on seriesId; its winner is the team with more game wins.",
+    "Scouting assigns each hero the position it was most played at across the whole tournament; heroes whose modal position holds under 60% of their games are marked flex.",
+    "Ban prediction is a transparent blend, not a model. Without --series: 45% tournament first-phase ban rate, 35% the banning team's own rate, 20% opponent threat. With --series: in-series bans 40%, tournament 25%, own 20%, threat 15%.",
+    "Stratz reports registered org names; --aliases labels teams by the name they played under (PARIVISION as TEAM VISION, BetBoom Team as BoomBoys)."
+  ],
+  "rerun": {
+    "fetch": "uv run analyses/ti2026/ti2026_fetch.py [--refresh]",
+    "report": "uv run analyses/ti2026/ti2026_report.py",
+    "scouting": "uv run analyses/ti2026/ti2026_scouting.py --teams <team> [<team>] [--aliases NAME=ALIAS] [--series <seriesId>] -o analyses/ti2026/out/<slug>_YYYY-MM-DD.json",
+    "scouting_page": "uv run analyses/ti2026/ti2026_scouting_page.py <scouting json> --title <title> [--eyebrow ...] [--lede ...] [--note ...] -o analyses/ti2026/out/<slug>_YYYY-MM-DD.html",
+    "requirements": "The report and scouting read only the cached match JSON (the heroes constant is fetched once with a 10-year TTL). The fetch needs STRATZ_TOKEN and network access.",
+    "repeatability_note": "Finished matches don't change, so reruns against the 146-match cache reproduce the recorded numbers. That cache stops before game 5 of the grand final; a --refresh fetch would add it and change the report. The two 2026-08-22 scouting runs used a 139-match cache and an earlier version of ti2026_scouting.py, so they can't be reproduced; their outputs in out/ are the record."
+  },
+  "runs": [
+    {
+      "run_on": "2026-08-22",
+      "script": "scouting + scouting_page",
+      "command": "ti2026_scouting.py --teams PARIVISION",
+      "coverage": "139 tournament games, Aug 13 to Aug 22",
+      "output": [
+        "analyses/ti2026/out/pari_scouting_2026-08-22.json",
+        "analyses/ti2026/out/pari_board_2026-08-23.html (title 'PARIVISION Draft Board'; rendered on 2026-08-23 from the 139-game JSON)"
+      ],
+      "note": "Command from the script's docstring; an earlier script version (no contest-by-position or predictions)."
+    },
+    {
+      "run_on": "2026-08-22",
+      "script": "scouting + scouting_page",
+      "command": "ti2026_scouting.py --teams \"Team Spirit\" \"BetBoom Team\" --aliases \"BetBoom Team=BoomBoys\"",
+      "coverage": "139 tournament games, Aug 13 to Aug 22",
+      "output": [
+        "analyses/ti2026/out/lb_scouting_2026-08-22.json",
+        "analyses/ti2026/out/lb_board_2026-08-22.html (title 'Spirit vs BoomBoys', eyebrow '... · Lower bracket')"
+      ],
+      "note": "Command from the script's docstring; an earlier script version."
+    },
+    {
+      "run_on": "2026-08-23",
+      "script": "scouting + scouting_page",
+      "command": "ti2026_scouting.py --teams PARIVISION \"Team Spirit\" --aliases \"PARIVISION=TEAM VISION\" --series 1133004 && ti2026_scouting_page.py <json> --title \"Grand Final Draft Board\" --eyebrow \"The International 2026 &middot; Shanghai &middot; Grand final &middot; 2&ndash;2, game 5\" --lede \"PARIVISION and Team Spirit at 2&ndash;2, role by role. Each position leads with its contest index, then the two players who fight over it. Ban predictions close the page and are now weighted by what the two have actually banned across the first four games.\" --note \"Radiant has won all four games of this final. Position is each hero&rsquo;s modal position across all 146 tournament games.\"",
+      "coverage": "146 tournament games, Aug 13 to Aug 23; grand final seriesId 1133004 at 2-2",
+      "output": [
+        "analyses/ti2026/out/gf_scouting_2026-08-23.json",
+        "analyses/ti2026/out/gf_board_2026-08-23.html"
+      ],
+      "note": "Arguments recovered from the saved files. On 2026-09-29 this exact command reproduced both files byte for byte."
+    },
+    {
+      "run_on": "2026-09-29",
+      "script": "report",
+      "command": "uv run analyses/ti2026/ti2026_report.py",
+      "code_revision": "uncommitted (the scripts have never been committed)",
+      "input": "data/raw/ti2026_matches_combined.json (written 2026-08-23, 146 matches)",
+      "report": "analyses/ti2026/ti2026_report_2026-09-29.md",
+      "note": "Rerun from the cache; any earlier report run wasn't saved.",
+      "data_note": "The cache was last refreshed during the grand final: it holds games 1-4 of series 1133004 (2-2) but not game 5, so the final is undecided in this data and the records exclude it. Refresh with ti2026_fetch.py --refresh to complete it.",
+      "top": "Treant Protector contested in all 146 games (138 bans); PARIVISION 7-0 and Team Spirit 8-3 in decided series; Satanic highest IMP (9.7)"
+    }
+  ]
+}

@@ -140,6 +140,8 @@ celerybeat.pid
 mnesia/
 rabbitmq/
 rabbitmq-data/
+# Regenerable run output of each analysis (CLAUDE.md, "Filing an analysis")
+analyses/*/out/
 
 # ActiveMQ
 activemq-data/
@@ -220,8 +222,5 @@ __marimo__/
 # Claude Code local (personal) settings
 .claude/settings.local.json
 
-# Local data cache and derived tables (see DESIGN.md)
-data/raw/
-data/flattened/
-data/marts/
-data/warehouse.duckdb
+# Local data cache, derived tables and the MCP server's local state (docs/adr/0004)
+data/
