@@ -1,0 +1,4 @@
+# Copy to local.mk (gitignored) and fill in. Deployment specifics that stay out of the
+# public repo; the Makefile's gcloud targets refuse to run without them.
+PROJECT := <gcp-project-id>
+GCLOUD_CONFIG := $(HOME)/.config/<your-personal-gcloud-config>

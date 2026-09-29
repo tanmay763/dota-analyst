@@ -7,6 +7,19 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 ## [Unreleased]
 
+### Added
+
+- `make release-check` and `make release`: check that `main`, the versions and the
+  changelog are ready, then tag, push and publish the GitHub release
+  (`scripts/release.py`).
+- A $10/month budget alert on the server's resources, counting cost before credits.
+
+### Changed
+
+- The server runs at most one instance, which caps the cost of a flood.
+- The GCP project and gcloud configuration moved from the Makefile and docs into a
+  gitignored `local.mk` (`local.mk.example` shows the shape).
+
 ## [0.1.0] - 2026-09-29
 
 The first release: Dota 2 analysis from Stratz as a Claude plugin, with in-game hero

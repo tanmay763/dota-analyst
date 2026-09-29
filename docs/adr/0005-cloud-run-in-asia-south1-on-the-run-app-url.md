@@ -4,7 +4,7 @@ It runs in the existing GCP project to use its credits, with Cloud Run's request
 
 Stratz sits behind Cloudflare, which blocks GitHub Actions. On 2026-09-28, a throwaway Cloud Run job in asia-south1 sent one request from each of three egress IPs. All three reached Stratz (`403 "A bearer token is required"`, cf-ray `…-BOM`), not a challenge. Egress IPs come from a shared, changing pool, so that lowers the risk but doesn't remove it. If the server ever meets a challenge, its error names Cloudflare (`describe_failure`), and the fallback is Fly.io `bom` or `sin` (the website already reaches Stratz from `sin`). No `fly.toml` exists until then.
 
-Cloud Run domain mapping isn't available in asia-south1, so the URL is `*.run.app`. It stays stable while the service exists. Changing it means a plugin release, and every user reconnects.
+Cloud Run domain mapping isn't available in asia-south1, so the URL is `*.run.app`, in its hash form (`dota-analyst-mcp-rpuldjax7a-el.a.run.app`). The other form, `<service>-<project number>.<region>.run.app`, would publish the project number, and the repo keeps the project out of public files (`local.mk`). It stays stable while the service exists. Changing it means a plugin release, and every user reconnects.
 
 ## Considered Options
 
