@@ -17,8 +17,12 @@ suggested analyses — does **not** belong here.
   `winHour`, `winDay`, `winMonth` and `winGameVersion`, which take the same
   arguments (`heroIds`, `take`, `skip`, `bracketIds`, `positionIds`,
   `regionIds`, `gameModeIds`, `groupBy`). With a position filter, the picks
-  summed over heroes are 2 per match (one slot in that position per team), so
-  a hero's pick rate there is picks / (SUM(picks) / 2).
+  summed over heroes are about 2 per match (one slot in that position per team),
+  so a hero's pick rate there is picks / (SUM(picks) / 2). It's about 1% short
+  of exactly 2, because roughly 1% of slots have no assigned position (measured
+  2026-09-29: position-filtered picks = 0.99 × ⅕ of unfiltered picks), so rates
+  computed this way run about 1% high. That's fine for rankings; say so if
+  quoting absolute pick rates.
 - The most recent week may be in progress — treat a week starting at `T` as
   complete only when `now >= T + 7 days`.
 - Sanity: match-weighted mean win rate across heroes is exactly 0.5 per

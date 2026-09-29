@@ -11,7 +11,14 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 - The plugin README says the hero grid preview loads portraits from Steam's CDN.
 - The cookbook says Stratz weeks start on Thursday, and how to filter hero win stats by
-  position (`positionIds`) and compute a position's pick rate (#14).
+  position (`positionIds`) and compute a position's pick rate, which runs about 1% high
+  (#14).
+
+### Fixed
+
+- Query mistakes, such as a misspelled field or a bad enum value, now reach Claude with
+  Stratz's message (for example "Did you mean 'winWeek'?"). Stratz sends them as HTTP 400,
+  which the server used to report only as "unrecognised rejection".
 
 ## [0.1.1] - 2026-09-29
 

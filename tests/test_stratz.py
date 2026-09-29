@@ -373,3 +373,26 @@ def test_aggregate_returns_time_zone_aware_timestamps(live, stratz):
     )
     assert result["rows"][0][0].startswith("2026-09-10")
     assert isinstance(result["rows"][0][1], str)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        (
+            "Argument 'positionIds' has invalid value. In element #1: "
+            "[Expected type 'MatchPlayerPositionType', found POSITION_9.]"
+        ),
+        "Cannot query field 'winWeak' on type 'HeroStatsQuery'. Did you mean 'winWeek' or 'winDay'?",
+    ],
+)
+def test_validation_errors_sent_as_400_reach_the_model(live, stratz, message):
+    """Stratz answers GraphQL validation errors with HTTP 400 and an `errors` body
+    (GraphQL over HTTP), not 200: the model needs the message to fix its query."""
+    calls, queue = stratz
+    queue.append((400, {"errors": [{"message": message, "extensions": {"code": "X"}}]}))
+    with pytest.raises(StratzToolError) as info:
+        live.fetch(TOKEN, WIN_WEEK, {"weeks": 2})
+    assert message in str(info.value) and "rejected the query" in str(info.value)
+    assert len(calls) == 1  # not retried
+    queue.append((200, {"data": WIN_WEEK_DATA}))
+    assert live.fetch(TOKEN, WIN_WEEK, {"weeks": 2})["cached"] is False  # not cached

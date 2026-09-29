@@ -197,6 +197,20 @@ def _summary(dataset: str, data: dict, cached: bool) -> dict:
     return {"dataset": dataset, "cached": cached, "tables": tables}
 
 
+def _graphql_errors(response: httpx.Response) -> str | None:
+    """The GraphQL `errors` messages in a response, whatever its status, or None."""
+    try:
+        body = response.json()
+    except ValueError:
+        return None
+    errors = body.get("errors") if isinstance(body, dict) else None
+    if not errors or not isinstance(errors, list):
+        return None
+    return "; ".join(
+        e.get("message", str(e)) if isinstance(e, dict) else str(e) for e in errors[:3]
+    )
+
+
 def _json_value(value):
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
@@ -307,6 +321,13 @@ class LiveStratz:
             except httpx.TransportError as exc:
                 last_error = f"Stratz unreachable: {exc}"
             else:
+                # Stratz follows GraphQL over HTTP: a query that fails validation (a
+                # misspelled field, a bad enum value) comes back as HTTP 400 with an
+                # `errors` body, execution errors as 200 with one. Either way the
+                # messages go back to the model, which needs them to fix its query.
+                errors = _graphql_errors(response)
+                if errors and response.status_code < 500:
+                    raise StratzToolError(f"Stratz rejected the query: {errors}")
                 if response.status_code == 429 or response.status_code >= 500:
                     last_error = f"Stratz answered {response.status_code}"
                 elif response.status_code >= 400:
@@ -315,11 +336,6 @@ class LiveStratz:
                     )
                 else:
                     body = response.json()
-                    if body.get("errors"):
-                        messages = "; ".join(
-                            e.get("message", str(e)) for e in body["errors"][:3]
-                        )
-                        raise StratzToolError(f"Stratz rejected the query: {messages}")
                     if body.get("data") is None:
                         raise StratzToolError("Stratz returned no data for the query.")
                     return body["data"]
