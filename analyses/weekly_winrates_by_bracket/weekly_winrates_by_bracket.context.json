@@ -1,0 +1,53 @@
+{
+  "analysis": "weekly_winrates_by_bracket",
+  "script": "analyses/weekly_winrates_by_bracket/weekly_winrates_by_bracket.py",
+  "context_recorded_on": "2026-09-29",
+  "original_user_prompt": null,
+  "user_clarifications": [],
+  "prompt_provenance": {
+    "status": "unavailable",
+    "note": "Built on 2026-06-11 in a Claude Code session at ~/Desktop/python/dota-analyst, whose transcript no longer exists (transcripts older than 30 days are cleaned up). The request is known only from the design document it implemented, quoted in evidence."
+  },
+  "evidence": [
+    "Commit d1f4f63 (2026-06-11, 'Build v1 of the stratz-analysis Claude Agent Skill') added the script as 'end-to-end validation'.",
+    "DESIGN.md at d1f4f63, build order step 3 (a planning document, not a user prompt): 'Run one end-to-end analysis (e.g., weekly hero win rates by bracket) to validate the loop; harvest the first cookbook.md entries from it.'"
+  ],
+  "interpreted_question": {
+    "text": "For each rank, which heroes had the highest win rate in the latest complete week, and do Stratz's weekly hero stats pass the 50% win-rate sanity check?",
+    "provenance": "Inferred from the design document and the script."
+  },
+  "requested_scope": null,
+  "implemented_scope": {
+    "source": "heroStats.winWeek, one query per rank (RankBracket HERALD..IMMORTAL), last 8 weeks, ALL_PICK_RANKED; constants.heroes for names",
+    "period": "the latest complete week: a week starting at T counts as complete once now >= T + 7 days",
+    "rows": "top 5 heroes by win rate per rank",
+    "suppression": "hero-week cells with matchCount < 200"
+  },
+  "methodological_choices": [
+    "Win rate = winCount / matchCount; matchCount counts picks (10 per match), not matches.",
+    "Sanity check: the pick-weighted mean win rate per rank must be 0.5.",
+    "No position filter: every position is pooled."
+  ],
+  "rerun": {
+    "command": "uv run analyses/weekly_winrates_by_bracket/weekly_winrates_by_bracket.py",
+    "requirements": "STRATZ_TOKEN in .env; network access to api.stratz.com (responses cached in data/raw/ for 7 days).",
+    "repeatability_note": "'Latest complete week' is a dynamic default: a rerun more than 7 days after a recorded run fetches newer weeks and gives different numbers. The dated report is the lasting record."
+  },
+  "runs": [
+    {
+      "run_on": "2026-06-11",
+      "code_revision": "d1f4f63",
+      "report": null,
+      "note": "Original validation run; no report was saved."
+    },
+    {
+      "run_on": "2026-09-29",
+      "code_revision": "e60e03d plus the uncommitted move to analyses/weekly_winrates_by_bracket/ (paths only)",
+      "resolved_period": "week starting 2026-09-10 (Stratz weeks start on Thursday)",
+      "report": "analyses/weekly_winrates_by_bracket/weekly_winrates_by_bracket_2026-09-29.md",
+      "output": null,
+      "data_note": "Stratz's hero stats stopped at 2026-09-17 on this date (about 12 days behind), so the latest complete week was 2026-09-10 to 09-16.",
+      "top": "Wraith King tops Guardian, Crusader and Archon; Bounty Hunter tops Ancient and Immortal; Spectre tops Herald; Visage tops Legend; Meepo tops Divine"
+    }
+  ]
+}

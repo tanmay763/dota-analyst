@@ -13,13 +13,19 @@ Metrics (grain = hero, denominator = total drafted games):
   pick_rate   = picks / games
   ban_rate    = bans / games
   contest_rate= contest / games
+
+Run from the repo root: uv run analyses/blast_slam_vii/blast_slam_vii.py
+Provenance: blast_slam_vii.context.json.
 """
 import json
 import sys
+from pathlib import Path
+
 import duckdb
 
-RAW = "data/raw/bs7_matches_combined.json"
-HEROES = "data/raw/heroes_const.json"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RAW = REPO_ROOT / "data" / "raw" / "bs7_matches_combined.json"
+HEROES = REPO_ROOT / "data" / "raw" / "heroes_const.json"
 
 heroes = {h["id"]: h["displayName"] for h in json.load(open(HEROES))}
 games = len(json.load(open(RAW))["matches"])
