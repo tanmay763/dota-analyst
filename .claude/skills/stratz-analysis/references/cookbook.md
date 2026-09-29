@@ -10,7 +10,15 @@ suggested analyses — does **not** belong here.
 
 - `take` = number of most-recent weeks **per hero**, not total rows: the
   result has ~127 heroes × `take` rows.
-- `week` is the epoch second of the week's start.
+- `week` is the epoch second of the week's start, and Stratz weeks start on
+  **Thursday** at 00:00 UTC (e.g. 1788998400 = Thu 2026-09-10), not Monday.
+- Filter by position with `positionIds: [MatchPlayerPositionType]`
+  (`POSITION_1`..`POSITION_5`); it applies to `winWeek` and to its siblings
+  `winHour`, `winDay`, `winMonth` and `winGameVersion`, which take the same
+  arguments (`heroIds`, `take`, `skip`, `bracketIds`, `positionIds`,
+  `regionIds`, `gameModeIds`, `groupBy`). With a position filter, the picks
+  summed over heroes are 2 per match (one slot in that position per team), so
+  a hero's pick rate there is picks / (SUM(picks) / 2).
 - The most recent week may be in progress — treat a week starting at `T` as
   complete only when `now >= T + 7 days`.
 - Sanity: match-weighted mean win rate across heroes is exactly 0.5 per
