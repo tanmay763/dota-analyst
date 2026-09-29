@@ -14,7 +14,7 @@ and it points at the server through `plugin/.mcp.json`.
 | **Deploys** | By hand: `make deploy`. Nothing deploys automatically |
 | **GCP identity** | Service account `dota-analyst-mcp` |
 | **Secrets** | `DOTA_ANALYST_SEAL_KEYS`, from Secret Manager. There is no Stratz token: every user brings their own (ADR 0002) |
-| **Cost** | Inside Cloud Run's free tier at a few users; the bucket holds megabytes. A $10/month budget alert watches for floods (below) |
+| **Cost** | Inside Cloud Run's free tier at a few users; the bucket holds megabytes. A budget alert (₹850/month, about $10) watches for floods (below) |
 
 ## Google Cloud resources
 
@@ -91,15 +91,19 @@ Versions follow semver and are shared by the plugin and the server:
 
 ## Budget alert
 
-A $10/month budget on the project's billing account emails the billing admins at 50%, 90%
-and 100%. It counts **gross** cost, with credits excluded (otherwise the project's credits
+A ₹850/month budget (about $10; the billing account is in INR, and a budget must use its
+currency) on the project's billing account emails the billing admins at 50%, 90% and 100%. It counts **gross** cost, with credits excluded (otherwise the project's credits
 would hide a flood), and only resources labelled `app=dota-analyst-mcp`. Normal use is
 about $0, so any alert means unusual traffic. A sustained flood is capped by
 `max-instances=1` at roughly one instance-month (about $70). To look at it:
 
 ```sh
-CLOUDSDK_CONFIG=<GCLOUD_CONFIG> gcloud billing budgets list --billing-account=<billing account>
+CLOUDSDK_CONFIG=<GCLOUD_CONFIG> gcloud billing budgets list \
+  --billing-account=<billing account> --billing-project=<project>
 ```
+
+Pass `--billing-project`: without it, gcloud bills the Budgets API call to the
+configuration's default quota project, which may be another project with the API off.
 
 ## Rotating the sealing keys
 
