@@ -19,6 +19,8 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 - Query mistakes, such as a misspelled field or a bad enum value, now reach Claude with
   Stratz's message (for example "Did you mean 'winWeek'?"). Stratz sends them as HTTP 400,
   which the server used to report only as "unrecognised rejection".
+- A Stratz rejection the server doesn't recognise now quotes Stratz's response, so the
+  cause can be seen.
 
 ## [0.1.1] - 2026-09-29
 
