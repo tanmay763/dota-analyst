@@ -10,6 +10,8 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 ### Changed
 
 - The plugin README says the hero grid preview loads portraits from Steam's CDN.
+- The cookbook says Stratz weeks start on Thursday, and how to filter hero win stats by
+  position (`positionIds`) and compute a position's pick rate (#14).
 
 ## [0.1.1] - 2026-09-29
 
