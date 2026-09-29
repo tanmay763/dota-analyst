@@ -47,6 +47,7 @@ SAMPLE_CHARS = 60
 MIN_INTERVAL_SECONDS = 0.35  # well under Stratz's 20 req/s and 250 req/min per token
 MAX_ATTEMPTS = 3
 ERROR_BODY_CHARS = 500
+REJECTION_SNIPPET_CHARS = 200
 
 
 class StratzToolError(Exception):
@@ -71,7 +72,9 @@ def describe_failure(response: httpx.Response) -> str:
     elif "bearer token is required" in lowered:
         cause = "Stratz rejected the token (reconnect the plugin with a valid Stratz API token)"
     else:
-        cause = "unrecognised rejection"
+        # Say what Stratz said: an unexplained rejection is undiagnosable without it.
+        snippet = " ".join(body.split())[:REJECTION_SNIPPET_CHARS]
+        cause = f"unrecognised rejection: {snippet!r}"
     return f"{cause} | status={response.status_code} cf-ray={response.headers.get('cf-ray', '-')}"
 
 

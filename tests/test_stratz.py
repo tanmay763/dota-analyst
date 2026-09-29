@@ -396,3 +396,12 @@ def test_validation_errors_sent_as_400_reach_the_model(live, stratz, message):
     assert len(calls) == 1  # not retried
     queue.append((200, {"data": WIN_WEEK_DATA}))
     assert live.fetch(TOKEN, WIN_WEEK, {"weeks": 2})["cached"] is False  # not cached
+
+
+def test_an_unrecognised_rejection_quotes_what_stratz_said(live, stratz):
+    calls, queue = stratz
+    queue.append((403, {"message": "Some new reason Stratz refuses this request"}))
+    with pytest.raises(StratzToolError, match="Some new reason Stratz refuses") as info:
+        live.fetch(TOKEN, WIN_WEEK, {"weeks": 2})
+    assert "status=403" in str(info.value) and TOKEN not in str(info.value)
+    assert len(calls) == 1
