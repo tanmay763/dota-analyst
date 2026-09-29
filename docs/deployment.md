@@ -126,9 +126,11 @@ make deploy
   with `client_id_metadata_document_supported` and
   `authorization_response_iss_parameter_supported` both `true`.
 - A `POST <URL>/mcp` without a token answers `401` with a `resource_metadata` pointer.
-- End to end: connect the plugin in Claude, ask a question, then ask for a hero grid.
-  The scripted equivalent signs in as Claude Code with the maintainer's `STRATZ_TOKEN`
-  and calls every tool; it passed against this deployment on 2026-09-29.
+- End to end: `uv run scripts/e2e_check.py <URL>` signs in as Claude Code (real CIMD,
+  loopback redirect) with the maintainer's `STRATZ_TOKEN`. It calls every tool against
+  live Stratz, downloads the grid, probes the refusals, and exits 1 on any failure.
+  `.claude/skills/verify/SKILL.md` has the whole verification recipe. For the plugin's own
+  behaviour, connect it in Claude, ask a question, then ask for a hero grid.
 
 ## Troubleshooting
 
