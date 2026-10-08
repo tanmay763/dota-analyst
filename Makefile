@@ -13,7 +13,7 @@ GCLOUD  = CLOUDSDK_CONFIG=$(GCLOUD_CONFIG) gcloud --project=$(PROJECT)
 NEED_LOCAL = $(if $(and $(PROJECT),$(GCLOUD_CONFIG)),,$(error PROJECT or GCLOUD_CONFIG is unset: copy local.mk.example to local.mk and fill it in))
 
 .DEFAULT_GOAL := help
-.PHONY: help test lint serve gcloud-status deploy url bump release-check release
+.PHONY: help test lint serve gcloud-status deploy url release-check release
 
 help:
 	@echo "make test           pytest (no network, no credentials)"
@@ -22,7 +22,6 @@ help:
 	@echo "make gcloud-status  the personal gcloud login and project (read-only)"
 	@echo "make deploy         build and deploy the server to Cloud Run"
 	@echo "make url            the deployed service URL"
-	@echo "make bump           bump the version from the changelog (CI does it in each PR)"
 	@echo "make release-check  every release check, without tagging or publishing"
 	@echo "make release        tag vX.Y.Z and publish the GitHub release (docs/deployment.md)"
 
@@ -53,9 +52,6 @@ deploy:
 url:
 	$(NEED_LOCAL)
 	@$(GCLOUD) run services describe $(SERVICE) --region=$(REGION) --format='value(status.url)'
-
-bump:
-	uv run python scripts/release.py bump
 
 release-check:
 	uv run python scripts/release.py --dry-run

@@ -7,6 +7,13 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 ## [Unreleased]
 
+### Removed
+
+- The CI version bump that shipped in 0.2.0 (`make bump`, the bump commit pushed to each
+  PR, and tagging on merge). Versions are raised by hand again and released with
+  `make release` (`docs/deployment.md`, "Releasing"). CI still runs `make test lint` on
+  every PR.
+
 ## [0.2.0] - 2026-10-08
 
 ### Added

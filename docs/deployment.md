@@ -75,38 +75,19 @@ repo's default branch.
 
 ## Releasing
 
-Versions follow semver and are shared by the plugin and the server. CI bumps them in each
-PR (ADR 0012), because the "Protect main" ruleset lets nothing reach `main` but a PR:
+Versions follow semver and are shared by the plugin and the server:
 
-1. **In every PR that ships code**, write the user-visible changes under `[Unreleased]`
-   in `CHANGELOG.md`, under Keep a Changelog headings. Leave the version alone.
-2. **CI** (`.github/workflows/ci.yml`, on every push to the PR) runs `make bump`, then
-   `make test lint` on the bumped tree, then pushes a "Bump version to X.Y.Z" commit to
-   the PR's branch. A commit pushed by CI starts no CI run, so the job marks it with a
-   passing `ci` status itself: that tree is the one it just tested, and a required `ci`
-   check is satisfied by it. `make bump` (`scripts/release.py bump`) takes the version on `main`
-   and picks the part from the notes: `### Removed` or a `**Breaking**` note is major
-   (minor before 1.0.0), `### Added` is minor, and anything else is patch. It sets the
-   version in `pyproject.toml` and `plugin/.claude-plugin/plugin.json`, runs `uv lock`,
-   and moves the notes under `## [X.Y.Z] - <today, UTC>` with the compare link. Later
-   pushes re-run it: notes added since join the same section, and the part can grow.
-   - **Docs- and CI-only PRs** (only `docs/`, `.github/`, root-level `*.md` and
-     `analyses/**/*.md`) aren't bumped and need no notes. Plugin skills and the cookbook
-     are markdown but ship, so they count as code.
-   - A code PR with no notes **fails** CI: add the notes and push.
-   - A PR from a fork can't be pushed to: CI checks it, and its author runs `make bump`.
-   - If another PR merges first, merge `main` in: take `main`'s version lines and its
-     changelog sections, put this PR's notes back under `[Unreleased]`, and push. CI
-     bumps again from the new version.
-3. **Merging** runs `.github/workflows/release.yml`: `scripts/release.py --if-new` checks
-   that `main` is clean and the versions agree, runs the tests and lint, tags `vX.Y.Z`,
-   pushes the tag and publishes the GitHub release with the version's changelog section.
-   When the version is already tagged (a docs- or CI-only merge), it does nothing.
-4. **Deploy** with `make deploy` from the merged `main`. The server reports the version in
-   its MCP server info. The release is published before the deploy, so deploy soon after.
-
-`make release-check` still runs every release check locally without tagging, and
-`make release` does what CI does, should CI be unavailable.
+1. Raise `version` in `pyproject.toml` and `plugin/.claude-plugin/plugin.json` together,
+   and run `uv lock`. `tests/test_release.py` fails if they differ.
+2. Move the `[Unreleased]` notes in `CHANGELOG.md` under `## [X.Y.Z] - YYYY-MM-DD`, and add
+   the version's link at the bottom.
+3. Merge to `main` through a pull request, then `make deploy`. The server reports the
+   version in its MCP server info.
+4. On the merged `main`, run `make release-check`, then `make release`. It checks that
+   `main` is clean and matches `origin/main`, that the versions agree, that the changelog
+   has the section, and that the tag is new, and it runs the tests and lint. Then it tags
+   `vX.Y.Z`, pushes the tag, and publishes the GitHub release with that changelog section
+   as the notes (`scripts/release.py`).
 
 ## Budget alert
 
