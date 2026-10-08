@@ -1,0 +1,53 @@
+# Every PR: bump the version from the changelog notes (ADR 0012), run the checks on the
+# bumped tree, and push the bump to the PR's branch. A push made with GITHUB_TOKEN starts
+# no workflow, so the bump commit is never checked on its own: the checks run here first.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+      # Branch names are chosen by whoever opens the PR: scripts read them from here only.
+      HEAD_REF: ${{ github.head_ref }}
+      BASE_REF: ${{ github.base_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A branch from this repository is checked out by name so the bump can be
+          # pushed to it; a fork's PR gets the merge commit, and nothing is pushed.
+          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || '' }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.19"
+      - run: uv sync --locked
+      - name: Bump the version
+        run: uv run python scripts/release.py bump --base "origin/$BASE_REF"
+      - name: Checks
+        run: make test lint
+      - name: Push the bump
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to push."
+          elif [ "$SAME_REPO" != "true" ]; then
+            echo "::warning::This PR is from a fork, so CI can't push the version bump. Run 'make bump' and push it."
+          else
+            version=$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --all --message "Bump version to $version"
+            git push origin "HEAD:refs/heads/$HEAD_REF"
+          fi

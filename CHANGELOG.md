@@ -14,6 +14,10 @@ things: tool names and arguments, skill behaviour, or the connector URL.
   The choices reach Claude as the user's next message, and the grid is built from them.
   This is the `review_borderline_heroes` tool and its MCP App, `ui://hero-swipe`
   (ADR 0011). Where the cards don't show, such as Claude Code, Claude asks in chat.
+- CI on every PR: it bumps the version from the `[Unreleased]` notes (docs- and
+  CI-only PRs aren't bumped), runs the tests and lint, and pushes the bump to the PR.
+  Merging to `main` tags the version and publishes its GitHub release (ADR 0012,
+  `make bump`).
 
 ## [0.1.2] - 2026-09-29
 
