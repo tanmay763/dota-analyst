@@ -11,20 +11,8 @@ server it connects to (`src/dota_analyst_mcp/`), and the maintainer's local skil
   `.gcloudignore`, the Makefile's deploy targets, Cloud Run settings, secrets, the
   bucket, or IAM grants.
 - Releases follow semver, with one version in `pyproject.toml` and the plugin manifest,
-  and an entry in `CHANGELOG.md` (`docs/deployment.md`, "Releasing"). Never raise the
-  version or date a changelog section by hand: CI bumps it in each PR that ships code,
-  from the `[Unreleased]` notes (ADR 0012).
-- **Changelog:** every change that ships (anything outside `docs/`, `.github/`,
-  root-level `*.md` and `analyses/**/*.md`; plugin skills and the cookbook ship) gets
-  notes under `[Unreleased]` in the same change, or CI fails the PR.
-  - One bullet per change a user or the maintainer would notice, written for them: what
-    it does for them, not which files moved. Name the tool, command or ADR it involves.
-  - The heading picks the bump, so choose it deliberately: `### Added` (new capability,
-    minor), `### Changed`, `### Fixed`, `### Deprecated`, `### Security` (patch), and
-    `### Removed` or a `**Breaking:**` bullet for anything that breaks existing use
-    (major; minor before 1.0.0).
-  - Add to an existing heading rather than repeating it, and never edit a released
-    section: a correction goes under `[Unreleased]` as its own note.
+  and an entry in `CHANGELOG.md` (`docs/deployment.md`, "Releasing"). Note user-visible
+  changes under `[Unreleased]` as you make them.
 - Never read `references/stratz_schema.graphql` in full (~65K tokens). Use the
   schema index and grep/awk to extract single type blocks.
 - Bulk API data goes to disk, never into context. Peek at a few rows/distincts
