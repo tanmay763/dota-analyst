@@ -7,6 +7,14 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 ## [Unreleased]
 
+### Added
+
+- Before building a hero grid, Claude puts up to five borderline heroes (close calls in
+  or out of the grid) to the user as swipe cards: right keeps a hero, left leaves it out.
+  The choices reach Claude as the user's next message, and the grid is built from them.
+  This is the `review_borderline_heroes` tool and its MCP App, `ui://hero-swipe`
+  (ADR 0011). Where the cards don't show, such as Claude Code, Claude asks in chat.
+
 ## [0.1.2] - 2026-09-29
 
 ### Changed

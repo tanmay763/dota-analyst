@@ -32,6 +32,10 @@ A horizontal band of categories across a layout.
 A labelled box of heroes inside a row.
 _Avoid_: group, bucket
 
+**Borderline hero**:
+A hero the analysis can't settle in or out of a layout, such as one just under a tier cut-off or with a thin sample. Claude puts at most five to the user as swipe cards before building the grid.
+_Avoid_: dubious hero, edge case
+
 **Tier list**:
 A layout whose categories are tiers, best first.
 

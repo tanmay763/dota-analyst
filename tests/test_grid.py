@@ -123,3 +123,36 @@ def test_the_download_route_serves_hero_grid_config(http):
 
 def test_the_download_route_refuses_junk(http):
     assert http.get("/grid/nonsense.json").status_code == 400
+
+
+def test_borderline_heroes_become_cards_with_portrait_names():
+    cards = grid.resolve_candidates(
+        [{"hero": "pudge", "category": "Offlane · B", "note": "49% win rate"}], HEROES
+    )
+    assert cards == [
+        {
+            "hero_id": 14,
+            "name": "Pudge",
+            "short_name": "pudge",
+            "category": "Offlane · B",
+            "note": "49% win rate",
+        }
+    ]
+
+
+def test_unknown_borderline_heroes_are_all_reported():
+    with pytest.raises(GridError, match="Pudgee.*Rubik"):
+        grid.resolve_candidates([{"hero": "Pudgee"}, {"hero": "Rubik"}], HEROES)
+
+
+@pytest.mark.parametrize(
+    "candidates, message",
+    [
+        ([], "at least one"),
+        ([{"hero": "Axe"}] * 6, "at most 5"),
+        ([{"hero": "Axe"}, {"hero": "axe"}], "only once"),
+    ],
+)
+def test_a_swipe_stack_is_short_and_has_no_repeats(candidates, message):
+    with pytest.raises(GridError, match=message):
+        grid.resolve_candidates(candidates, HEROES)

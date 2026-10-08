@@ -1,4 +1,5 @@
-"""The hero grid app draws cards with the same geometry the server places them with."""
+"""The hero grid apps: the preview draws cards with the same geometry the server places
+them with, and both apps load only portraits and speak the handshake hosts validate."""
 
 import re
 from pathlib import Path
@@ -7,7 +8,10 @@ import pytest
 
 from dota_analyst_mcp import layout
 
-HTML = (Path(layout.__file__).parent / "ui" / "grid.html").read_text()
+UI = Path(layout.__file__).parent / "ui"
+HTML = (UI / "grid.html").read_text()
+SWIPE = (UI / "swipe.html").read_text()
+APPS = pytest.mark.parametrize("page", [HTML, SWIPE], ids=["grid", "swipe"])
 
 
 @pytest.mark.parametrize(
@@ -33,16 +37,24 @@ def test_app_card_aspect_matches_the_server():
     assert layout.CARD_ASPECT == pytest.approx(140 / 81)
 
 
-def test_the_app_loads_nothing_but_portraits():
-    sources = set(re.findall(r"https://[\w.-]+", HTML))
+@APPS
+def test_the_app_loads_nothing_but_portraits(page):
+    sources = set(re.findall(r"https://[\w.-]+", page))
     assert sources == {"https://cdn.steamstatic.com"}
 
 
-def test_the_handshake_sends_what_hosts_validate():
+@APPS
+def test_the_handshake_sends_what_hosts_validate(page):
     """Hosts check ui/initialize against the ext-apps schema: appInfo, appCapabilities,
     protocolVersion. MCP's clientInfo in place of appInfo makes the host refuse the app."""
-    init = HTML[HTML.index('request("ui/initialize"') :][:300]
+    init = page[page.index('request("ui/initialize"') :][:300]
     assert (
         "appInfo:" in init and "appCapabilities:" in init and "protocolVersion:" in init
     )
     assert "clientInfo" not in init
+
+
+def test_the_swipe_verdicts_are_a_user_message_of_content_blocks():
+    """ext-apps' McpUiMessageRequest: role "user" and `content` as a ContentBlock array."""
+    call = SWIPE[SWIPE.index('request("ui/message"') :][:120]
+    assert 'role: "user"' in call and 'content: [{ type: "text", text }]' in call

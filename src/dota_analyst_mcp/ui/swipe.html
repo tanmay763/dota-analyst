@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Borderline hero swipe</title>
+<!--
+  The MCP App behind review_borderline_heroes (ADR 0011): a stack of hero cards the user
+  swipes right (keep in the grid) or left (leave out) before Claude builds the grid. The
+  verdicts go back to Claude as a user message through ui/message. Like grid.html, it
+  speaks the MCP Apps postMessage protocol (ui/initialize, ui/notifications/tool-result,
+  ui/message) without an SDK, so the page loads nothing but hero portraits.
+-->
+<style>
+:root {
+  --bg: #15100c;
+  --surface: #221913;
+  --line: #3a2d23;
+  --text: #e7dfd3;
+  --muted: #9aa2b4;
+  --accent: #c8412d;
+  --keep: #5fae6b;
+  --drop: #d0503c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { padding: 12px 16px 16px; max-width: 420px; margin: 0 auto; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+h1 { margin: 0; font-size: 0.85rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.progress { color: var(--muted); font-variant-numeric: tabular-nums; }
+.hint { margin: 2px 0 12px; color: var(--muted); font-size: 0.9em; }
+.status { color: var(--muted); }
+
+.stack { position: relative; width: min(100%, 280px); aspect-ratio: 3 / 4; margin: 0 auto; }
+.card {
+  position: absolute; inset: 0;
+  border-radius: 12px; overflow: hidden;
+  background: #332820;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.55);
+  touch-action: pan-y; /* vertical drags still scroll the chat */
+  user-select: none; -webkit-user-select: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.card.top { cursor: grab; }
+.card.dragging { transition: none; cursor: grabbing; }
+.card img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: center top; pointer-events: none;
+}
+.card .info {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 48px 14px 12px;
+  background: linear-gradient(to top, rgb(15 11 8 / 0.96) 55%, rgb(15 11 8 / 0));
+}
+.card .name { font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
+.card .category {
+  display: inline-block; margin: 4px 0 6px; padding: 1px 8px; border-radius: 3px;
+  background: rgb(200 65 45 / 0.25); color: #f0b4a8; font-size: 0.8em; letter-spacing: 0.04em;
+}
+.card .note { color: var(--muted); font-size: 0.88em; line-height: 1.35; }
+.stamp {
+  position: absolute; top: 18px; padding: 2px 10px;
+  border: 3px solid; border-radius: 6px;
+  font-weight: 800; font-size: 1.4rem; letter-spacing: 0.12em;
+  opacity: 0; pointer-events: none;
+}
+.stamp.keep { left: 16px; color: var(--keep); transform: rotate(-14deg); }
+.stamp.drop { right: 16px; color: var(--drop); transform: rotate(14deg); }
+
+.controls { display: flex; justify-content: center; align-items: center; gap: 18px; margin-top: 14px; }
+button {
+  border: 0; border-radius: 4px; background: var(--accent); color: #fff;
+  font: inherit; cursor: pointer; padding: 6px 14px;
+}
+button:disabled { opacity: 0.4; cursor: default; }
+.round {
+  width: 54px; height: 54px; border-radius: 50%; padding: 0;
+  background: var(--surface); border: 2px solid var(--line); font-size: 1.5rem; line-height: 1;
+}
+.round.drop { color: var(--drop); border-color: var(--drop); }
+.round.keep { color: var(--keep); border-color: var(--keep); }
+.round.undo { width: 40px; height: 40px; font-size: 1.1rem; color: var(--muted); }
+
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 14px; }
+.summary h2 { margin: 0 0 4px; font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.summary .keep h2 { color: var(--keep); }
+.summary .drop h2 { color: var(--drop); }
+.summary ul { margin: 0; padding-left: 18px; }
+.summary li span { color: var(--muted); font-size: 0.85em; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.fallback {
+  margin-top: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface); user-select: all; -webkit-user-select: all;
+}
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Borderline heroes</h1>
+    <span class="progress" id="progress"></span>
+  </header>
+  <p class="hint">Swipe right to keep a hero in the grid, left to leave it out (or use ← →).</p>
+  <p class="status" id="status">Waiting for the heroes…</p>
+
+  <section id="deck" hidden>
+    <div class="stack" id="stack"></div>
+    <div class="controls">
+      <button class="round drop" id="drop" type="button" aria-label="Leave out">✕</button>
+      <button class="round undo" id="undo" type="button" aria-label="Undo">↶</button>
+      <button class="round keep" id="keep" type="button" aria-label="Keep">✓</button>
+    </div>
+  </section>
+
+  <section id="done" hidden>
+    <div class="summary">
+      <div class="keep"><h2>Keep</h2><ul id="kept"></ul></div>
+      <div class="drop"><h2>Leave out</h2><ul id="dropped"></ul></div>
+    </div>
+    <div class="actions">
+      <button id="send" type="button">Send to Claude</button>
+      <button id="back" type="button" style="background: var(--surface)">Undo last</button>
+      <span class="status" id="sent"></span>
+    </div>
+    <div class="fallback" id="fallback" hidden></div>
+  </section>
+</main>
+<script>
+const CDN = "https://cdn.steamstatic.com/apps/dota2/images";
+// Same portraits as grid.html; heroes newer than Valve's last batch fall back to landscape art.
+const PORTRAIT = (shortName) => `${CDN}/heroes/${shortName}_vert.jpg`;
+const FALLBACK = (shortName) => `${CDN}/dota_react/heroes/${shortName}.png`;
+const SWIPE_FRACTION = 0.3; // of the card's width, to count as a swipe on release
+const FLICK_SPEED = 0.6; // px/ms: a fast flick counts even when short
+
+const els = Object.fromEntries(
+  ["progress", "status", "deck", "stack", "drop", "undo", "keep", "done", "kept", "dropped", "send", "back", "sent", "fallback"]
+    .map((id) => [id, document.getElementById(id)]),
+);
+let candidates = [];
+let verdicts = []; // "keep" | "drop", one per swiped candidate, in order
+let sent = false;
+let animating = false;
+
+function cardFor(hero) {
+  const card = document.createElement("div");
+  card.className = "card";
+  if (hero.short_name) {
+    const img = document.createElement("img");
+    img.src = PORTRAIT(hero.short_name);
+    img.alt = "";
+    img.draggable = false;
+    img.onerror = () => {
+      if (img.dataset.fallback) img.remove();
+      else img.src = img.dataset.fallback = FALLBACK(hero.short_name);
+    };
+    card.append(img);
+  }
+  const info = document.createElement("div");
+  info.className = "info";
+  const name = Object.assign(document.createElement("div"), { className: "name", textContent: hero.name });
+  info.append(name);
+  if (hero.category) info.append(Object.assign(document.createElement("div"), { className: "category", textContent: hero.category }));
+  if (hero.note) info.append(Object.assign(document.createElement("div"), { className: "note", textContent: hero.note }));
+  card.append(
+    info,
+    Object.assign(document.createElement("div"), { className: "stamp keep", textContent: "KEEP" }),
+    Object.assign(document.createElement("div"), { className: "stamp drop", textContent: "DROP" }),
+  );
+  return card;
+}
+
+// Draw the next three cards, the top one last so it sits above the others.
+function render() {
+  const index = verdicts.length;
+  const finished = index >= candidates.length;
+  els.deck.hidden = finished;
+  els.done.hidden = !finished;
+  els.progress.textContent = finished ? `${candidates.length} / ${candidates.length}` : `${index + 1} / ${candidates.length}`;
+  els.undo.disabled = index === 0 || sent;
+  els.back.disabled = sent;
+  els.send.disabled = sent;
+  if (finished) return renderSummary();
+  const cards = candidates.slice(index, index + 3).map(cardFor);
+  cards.forEach((card, depth) => {
+    card.style.transform = `translateY(${depth * 8}px) scale(${1 - depth * 0.04})`;
+    card.style.zIndex = String(10 - depth);
+    if (depth > 0) card.style.opacity = depth === 1 ? "0.85" : "0.6";
+  });
+  cards[0].classList.add("top");
+  cards[0].setAttribute("aria-label", candidates[index].name);
+  attachDrag(cards[0]);
+  els.stack.replaceChildren(...cards.reverse());
+}
+
+function renderSummary() {
+  const item = (c) => {
+    const li = document.createElement("li");
+    li.textContent = c.name + " ";
+    if (c.category) li.append(Object.assign(document.createElement("span"), { textContent: `(${c.category})` }));
+    return li;
+  };
+  const none = () => Object.assign(document.createElement("li"), { textContent: "none" });
+  const kept = candidates.filter((_, i) => verdicts[i] === "keep").map(item);
+  const dropped = candidates.filter((_, i) => verdicts[i] === "drop").map(item);
+  els.kept.replaceChildren(...(kept.length ? kept : [none()]));
+  els.dropped.replaceChildren(...(dropped.length ? dropped : [none()]));
+}
+
+function setStamps(card, dx) {
+  const strength = Math.min(1, Math.abs(dx) / (card.offsetWidth * SWIPE_FRACTION));
+  card.querySelector(".stamp.keep").style.opacity = dx > 0 ? strength : 0;
+  card.querySelector(".stamp.drop").style.opacity = dx < 0 ? strength : 0;
+}
+
+// Fly the top card off to one side, then record the verdict and redraw.
+function decide(verdict, card = els.stack.querySelector(".card.top")) {
+  if (!card || animating || sent) return;
+  animating = true;
+  const dir = verdict === "keep" ? 1 : -1;
+  card.classList.remove("dragging");
+  setStamps(card, dir * card.offsetWidth);
+  card.style.transform = `translate(${dir * card.offsetWidth * 1.6}px, 20px) rotate(${dir * 24}deg)`;
+  card.style.opacity = "0";
+  const finish = () => {
+    animating = false;
+    verdicts.push(verdict);
+    render();
+  };
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
+  else card.addEventListener("transitionend", finish, { once: true });
+}
+
+function undo() {
+  if (!verdicts.length || animating || sent) return;
+  verdicts.pop();
+  els.fallback.hidden = true;
+  render();
+}
+
+function attachDrag(card) {
+  let start = null;
+  card.addEventListener("pointerdown", (event) => {
+    if (animating || sent) return;
+    start = { x: event.clientX, y: event.clientY, t: event.timeStamp, id: event.pointerId };
+    card.setPointerCapture(event.pointerId);
+    card.classList.add("dragging");
+  });
+  card.addEventListener("pointermove", (event) => {
+    if (!start || event.pointerId !== start.id) return;
+    const dx = event.clientX - start.x;
+    const dy = (event.clientY - start.y) * 0.3;
+    card.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 14}deg)`;
+    setStamps(card, dx);
+  });
+  const release = (event) => {
+    if (!start || event.pointerId !== start.id) return;
+    const dx = event.clientX - start.x;
+    const speed = Math.abs(dx) / Math.max(1, event.timeStamp - start.t);
+    start = null;
+    if (event.type !== "pointercancel" && (Math.abs(dx) > card.offsetWidth * SWIPE_FRACTION || (speed > FLICK_SPEED && Math.abs(dx) > 30))) {
+      decide(dx > 0 ? "keep" : "drop", card);
+    } else {
+      card.classList.remove("dragging");
+      card.style.transform = "";
+      setStamps(card, 0);
+    }
+  };
+  card.addEventListener("pointerup", release);
+  card.addEventListener("pointercancel", release);
+}
+
+// The message Claude reads as the user's next turn.
+function verdictText() {
+  const list = (verdict) => {
+    const names = candidates
+      .filter((_, i) => verdicts[i] === verdict)
+      .map((c) => (c.category ? `${c.name} (${c.category})` : c.name));
+    return names.length ? names.join(", ") : "none";
+  };
+  return `Borderline hero verdicts from the swipe cards. Keep: ${list("keep")}. Leave out: ${list("drop")}.`;
+}
+
+async function send() {
+  if (sent) return;
+  const text = verdictText();
+  els.send.disabled = true;
+  els.sent.textContent = "Sending…";
+  try {
+    // Sent even when the host didn't advertise `message`: the error path covers a refusal.
+    const result = await request("ui/message", { role: "user", content: [{ type: "text", text }] });
+    if (result?.isError) throw new Error("refused");
+    sent = true;
+    els.sent.textContent = "Sent to Claude.";
+    els.fallback.hidden = true;
+    render();
+  } catch {
+    els.send.disabled = false;
+    els.sent.textContent = "Couldn't send it. Paste this into the chat:";
+    els.fallback.textContent = text;
+    els.fallback.hidden = false;
+  }
+}
+
+function show(result) {
+  const data = result?.structuredContent;
+  if (!data?.candidates?.length) {
+    els.status.textContent = "No heroes in this result.";
+    return;
+  }
+  candidates = data.candidates;
+  verdicts = [];
+  sent = false;
+  els.status.hidden = true;
+  els.sent.textContent = "";
+  els.fallback.hidden = true;
+  render();
+}
+
+els.drop.addEventListener("click", () => decide("drop"));
+els.keep.addEventListener("click", () => decide("keep"));
+els.undo.addEventListener("click", undo);
+els.back.addEventListener("click", undo);
+els.send.addEventListener("click", send);
+document.addEventListener("keydown", (event) => {
+  if (!candidates.length) return;
+  if (event.key === "ArrowRight") decide("keep");
+  else if (event.key === "ArrowLeft") decide("drop");
+  else if (event.key === "Backspace" || (event.key === "z" && (event.metaKey || event.ctrlKey))) undo();
+  else return;
+  event.preventDefault();
+});
+
+// --- MCP Apps: JSON-RPC over postMessage with the host --------------------------------
+let nextId = 1;
+const pending = new Map();
+
+function request(method, params) {
+  const id = nextId++;
+  window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+  return new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+}
+
+function notify(method, params) {
+  window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
+}
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window.parent) return;
+  const msg = event.data;
+  if (!msg || msg.jsonrpc !== "2.0") return;
+  if (msg.id !== undefined && pending.has(msg.id) && !msg.method) {
+    const { resolve, reject } = pending.get(msg.id);
+    pending.delete(msg.id);
+    msg.error ? reject(new Error(msg.error.message ?? "request failed")) : resolve(msg.result);
+    return;
+  }
+  if (msg.method === "ui/notifications/tool-result") show(msg.params);
+  else if (msg.method === "ui/resource-teardown" && msg.id !== undefined) {
+    window.parent.postMessage({ jsonrpc: "2.0", id: msg.id, result: {} }, "*");
+  } else if (msg.method === "ping" && msg.id !== undefined) {
+    window.parent.postMessage({ jsonrpc: "2.0", id: msg.id, result: {} }, "*");
+  }
+});
+
+new ResizeObserver(() => {
+  notify("ui/notifications/size-changed", {
+    width: Math.ceil(document.documentElement.scrollWidth),
+    height: Math.ceil(document.documentElement.scrollHeight),
+  });
+}).observe(document.body);
+
+// The host validates these params: `appInfo` (not MCP's `clientInfo`) is required.
+request("ui/initialize", {
+  appInfo: { name: "dota-analyst-hero-swipe", version: "1.0.0" },
+  appCapabilities: { availableDisplayModes: ["inline"] },
+  protocolVersion: "2026-01-26",
+})
+  .then(() => notify("ui/notifications/initialized", {}))
+  .catch(() => {
+    els.status.textContent = "This host couldn't show the swipe cards; answer keep or leave out for each hero in the chat.";
+  });
+</script>
+</body>
+</html>

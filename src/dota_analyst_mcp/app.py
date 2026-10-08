@@ -1,4 +1,4 @@
-"""The dota-analyst MCP server (ADR 0001): tools, the hero grid app, sign-in and downloads.
+"""The dota-analyst MCP server (ADR 0001): tools, the hero grid apps, sign-in and downloads.
 
 Configuration comes from the environment:
 
@@ -117,6 +117,19 @@ class LayoutSpec(BaseModel):
     )
 
 
+class BorderlineSpec(BaseModel):
+    hero: str = Field(description="The hero's name, e.g. 'Pudge'.")
+    category: str = Field(
+        description="Where it would go if kept, e.g. 'Pos 1 tiers · B'."
+    )
+    note: str = Field(
+        description=(
+            "One line of evidence either way, with its period and ranks, e.g. "
+            "'51.2% win rate but 0.9% pick rate · Divine+ · week of 1 Oct'."
+        )
+    )
+
+
 def _stratz_token() -> str:
     token = get_access_token()
     if not isinstance(token, StratzAccessToken):
@@ -167,6 +180,32 @@ def create_server(settings: Settings) -> tuple[MCPServer, StratzOAuthProvider, "
         "ui://hero-grid",
         (UI / "grid.html").read_text(),
         title="Hero grid preview",
+        csp=ResourceCsp(resource_domains=["https://cdn.steamstatic.com"]),
+    )
+
+    @apps.tool(
+        resource_uri="ui://hero-swipe",
+        meta={"ui/resourceUri": "ui://hero-swipe"},
+        name="review_borderline_heroes",
+        title="Swipe on borderline heroes",
+        annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
+        description=(
+            "Before building a hero grid, put up to 5 borderline heroes (ones the analysis "
+            "can't settle in or out) to the user as swipe cards: right keeps, left drops. "
+            "The user's verdicts arrive as their next message; build the grid after it."
+        ),
+    )
+    async def review_borderline_heroes(
+        candidates: list[BorderlineSpec],
+    ) -> CallToolResult:
+        return await tools.review_borderline_heroes(
+            [candidate.model_dump() for candidate in candidates]
+        )
+
+    apps.add_html_resource(
+        "ui://hero-swipe",
+        (UI / "swipe.html").read_text(),
+        title="Borderline hero swipe",
         csp=ResourceCsp(resource_domains=["https://cdn.steamstatic.com"]),
     )
 
@@ -306,6 +345,27 @@ class Tools:
 
     async def build_hero_grid(self, layouts: list[dict]) -> CallToolResult:
         return await _run(self._build, _stratz_token(), layouts)
+
+    def _review(self, token: str, candidates: list[dict]) -> CallToolResult:
+        cards = grid.resolve_candidates(candidates, self.heroes(token))
+        text = "\n".join(
+            ["Swipe cards shown for:"]
+            + [f"- {c['name']} ({c['category']})" for c in cards]
+            + [
+                (
+                    "The user's verdicts arrive as their next message: build the grid "
+                    "with the kept heroes and without the dropped ones. If the user "
+                    "can't see swipe cards here, ask keep or drop for each in chat."
+                )
+            ]
+        )
+        return CallToolResult(
+            content=[TextContent(type="text", text=text)],
+            structured_content={"candidates": cards},
+        )
+
+    async def review_borderline_heroes(self, candidates: list[dict]) -> CallToolResult:
+        return await _run(self._review, _stratz_token(), candidates)
 
 
 # --- HTTP routes ------------------------------------------------------------------------
