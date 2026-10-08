@@ -6,6 +6,8 @@ When the last card is decided, the app saves the verdicts with `ui/update-model-
 
 The app never writes into the chat box. Whatever reaches Claude as the user's message is typed by the user, and the grid is still built only by Claude calling `build_hero_grid`, as in ADR 0006.
 
+On claude.ai (checked in 0.2.1, 2026-10-08) this works end to end: after the user typed "go", Claude ran the host's "Check the app on screen" step, which reads what the app saved, then built the grid with exactly the kept heroes. The host delivers the context through that step rather than attaching it to the message. The spec leaves the delivery to the host, and nothing here depends on how it's done.
+
 Verdicts live only in the app's page and the host's saved context. When the host re-renders the app, for example on reopening the conversation, the stack starts again.
 
 ## Considered Options
