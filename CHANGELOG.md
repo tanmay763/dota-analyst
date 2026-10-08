@@ -7,6 +7,14 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-08
+
+### Changed
+
+- The swipe cards for borderline heroes now save the user's choices as context for
+  Claude and ask them to type "go", instead of putting a message in the chat box, where
+  claude.ai held it for review under a prompt-injection warning (ADR 0011).
+
 ### Removed
 
 - The CI version bump that shipped in 0.2.0 (`make bump`, the bump commit pushed to each
@@ -115,7 +123,8 @@ These were caught while testing before the release:
   hosts require `appInfo`, and the tool lacked the flat `ui/resourceUri` key that some
   hosts read.
 
-[Unreleased]: https://github.com/tanmay763/dota-analyst/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tanmay763/dota-analyst/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/tanmay763/dota-analyst/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tanmay763/dota-analyst/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/tanmay763/dota-analyst/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/tanmay763/dota-analyst/compare/v0.1.0...v0.1.1

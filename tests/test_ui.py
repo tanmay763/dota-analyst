@@ -54,7 +54,14 @@ def test_the_handshake_sends_what_hosts_validate(page):
     assert "clientInfo" not in init
 
 
-def test_the_swipe_verdicts_are_a_user_message_of_content_blocks():
-    """ext-apps' McpUiMessageRequest: role "user" and `content` as a ContentBlock array."""
-    call = SWIPE[SWIPE.index('request("ui/message"') :][:120]
-    assert 'role: "user"' in call and 'content: [{ type: "text", text }]' in call
+def test_the_swipe_verdicts_are_saved_as_model_context():
+    """ext-apps' McpUiUpdateModelContextRequest: `content` as a ContentBlock array and
+    `structuredContent` as an object (ADR 0011)."""
+    call = SWIPE[SWIPE.index('request("ui/update-model-context"') :][:200]
+    assert 'content: [{ type: "text", text }]' in call
+    assert "structuredContent: { kept:" in call
+
+
+def test_the_swipe_app_never_writes_into_the_chat_box():
+    """ui/message puts text in the user's chat box on claude.ai (ADR 0011)."""
+    assert "ui/message" not in SWIPE

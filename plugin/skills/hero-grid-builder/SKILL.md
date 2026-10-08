@@ -38,10 +38,12 @@ or one that is strong but rarely played in that position. If there are any, pick
 most 5**, the closest calls, and call `review_borderline_heroes` with each hero, the
 category it would go in, and one line of evidence with its period and ranks.
 
-The user swipes right to keep a hero and left to leave it out, and the verdicts arrive
-as their next message. Wait for it, then build with the kept heroes in their categories
-and without the others. If the tool's preview doesn't show (Claude Code), ask keep or
-leave out for each hero in chat instead.
+The user swipes right to keep a hero and left to leave it out. When every card is
+decided, the app saves the verdicts as context from the swipe app and tells the user to
+type "go". Wait for that message, read the verdicts from the app's context, then build
+with the kept heroes in their categories and without the others. If the message comes
+with no verdicts in your context, ask the user to finish the cards. If the tool's
+preview doesn't show (Claude Code), ask keep or leave out for each hero in chat instead.
 
 Skip this step when nothing is borderline, when the user has already decided, and when
 rebuilding a grid after a change.

@@ -13,7 +13,7 @@ by rank, position and patch, matchups, items, lanes, a player's matches, pro lea
    "What does Morphling build on this patch?", "Show my hero pool by position".
 4. When you're happy with the analysis, ask for a hero grid, for example "make that a
    tier list grid". If a few heroes are close calls, Claude first shows them as cards:
-   swipe right to keep a hero, left to leave it out, then send your choices. Claude then
+   swipe right to keep a hero, left to leave it out, then type go. Claude then
    shows a preview and a download link for
    `hero_grid_config.json`, and explains where the Dota client reads it from. It can
    merge the new grid with your current one so you keep your own layouts.
