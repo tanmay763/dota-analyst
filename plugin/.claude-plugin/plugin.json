@@ -1,7 +1,7 @@
 {
   "name": "dota-analyst",
   "displayName": "Dota Analyst",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Analyse Dota 2 statistics from Stratz with Claude (hero win and pick rates, matchups, items, players, leagues), then turn the results into an in-game hero grid.",
   "author": { "name": "Tanmay Shrivastava", "url": "https://github.com/tanmay763" },
   "homepage": "https://github.com/tanmay763/dota-analyst",

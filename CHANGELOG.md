@@ -7,6 +7,8 @@ things: tool names and arguments, skill behaviour, or the connector URL.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-08
+
 ### Added
 
 - Before building a hero grid, Claude puts up to five borderline heroes (close calls in
@@ -106,7 +108,8 @@ These were caught while testing before the release:
   hosts require `appInfo`, and the tool lacked the flat `ui/resourceUri` key that some
   hosts read.
 
-[Unreleased]: https://github.com/tanmay763/dota-analyst/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/tanmay763/dota-analyst/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tanmay763/dota-analyst/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/tanmay763/dota-analyst/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/tanmay763/dota-analyst/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tanmay763/dota-analyst/releases/tag/v0.1.0
