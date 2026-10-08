@@ -1,6 +1,8 @@
 # Every PR: bump the version from the changelog notes (ADR 0012), run the checks on the
 # bumped tree, and push the bump to the PR's branch. A push made with GITHUB_TOKEN starts
-# no workflow, so the bump commit is never checked on its own: the checks run here first.
+# no workflow, so the bump commit is never checked on its own: the checks run here first,
+# and this job marks the pushed commit with a passing `ci` status, which is what a
+# required `ci` check reads.
 name: ci
 
 on:
@@ -14,6 +16,7 @@ concurrency:
 
 permissions:
   contents: write
+  statuses: write
 
 jobs:
   ci:
@@ -39,6 +42,10 @@ jobs:
       - name: Checks
         run: make test lint
       - name: Push the bump
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if git diff --quiet; then
             echo "Nothing to push."
@@ -50,4 +57,7 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit --all --message "Bump version to $version"
             git push origin "HEAD:refs/heads/$HEAD_REF"
+            gh api "repos/$REPO/statuses/$(git rev-parse HEAD)" --silent \
+              -f state=success -f context=ci -f target_url="$RUN_URL" \
+              -f description="Tested in this run before CI pushed the bump"
           fi

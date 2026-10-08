@@ -82,7 +82,9 @@ PR (ADR 0012), because the "Protect main" ruleset lets nothing reach `main` but 
    in `CHANGELOG.md`, under Keep a Changelog headings. Leave the version alone.
 2. **CI** (`.github/workflows/ci.yml`, on every push to the PR) runs `make bump`, then
    `make test lint` on the bumped tree, then pushes a "Bump version to X.Y.Z" commit to
-   the PR's branch. `make bump` (`scripts/release.py bump`) takes the version on `main`
+   the PR's branch. A commit pushed by CI starts no CI run, so the job marks it with a
+   passing `ci` status itself: that tree is the one it just tested, and a required `ci`
+   check is satisfied by it. `make bump` (`scripts/release.py bump`) takes the version on `main`
    and picks the part from the notes: `### Removed` or a `**Breaking**` note is major
    (minor before 1.0.0), `### Added` is minor, and anything else is patch. It sets the
    version in `pyproject.toml` and `plugin/.claude-plugin/plugin.json`, runs `uv lock`,
