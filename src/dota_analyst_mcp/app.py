@@ -192,7 +192,8 @@ def create_server(settings: Settings) -> tuple[MCPServer, StratzOAuthProvider, "
         description=(
             "Before building a hero grid, put up to 5 borderline heroes (ones the analysis "
             "can't settle in or out) to the user as swipe cards: right keeps, left drops. "
-            "The user's verdicts arrive as their next message; build the grid after it."
+            "The app saves the user's verdicts as context and asks them to type 'go'; "
+            "build the grid once they do."
         ),
     )
     async def review_borderline_heroes(
@@ -353,9 +354,12 @@ class Tools:
             + [f"- {c['name']} ({c['category']})" for c in cards]
             + [
                 (
-                    "The user's verdicts arrive as their next message: build the grid "
-                    "with the kept heroes and without the dropped ones. If the user "
-                    "can't see swipe cards here, ask keep or drop for each in chat."
+                    "When the user has swiped every card, the app saves their verdicts "
+                    "as context from the swipe app and asks them to type 'go'. With that "
+                    "message, build the grid with the kept heroes and without the dropped "
+                    "ones. If no verdicts are in your context, ask the user to finish the "
+                    "cards, or, if they can't see swipe cards here, ask keep or drop for "
+                    "each in chat."
                 )
             ]
         )

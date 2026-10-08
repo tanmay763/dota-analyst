@@ -7,9 +7,11 @@
 <!--
   The MCP App behind review_borderline_heroes (ADR 0011): a stack of hero cards the user
   swipes right (keep in the grid) or left (leave out) before Claude builds the grid. The
-  verdicts go back to Claude as a user message through ui/message. Like grid.html, it
-  speaks the MCP Apps postMessage protocol (ui/initialize, ui/notifications/tool-result,
-  ui/message) without an SDK, so the page loads nothing but hero portraits.
+  verdicts are saved as model context through ui/update-model-context, which the host
+  gives Claude with the user's next message; the app never writes into the chat box.
+  Like grid.html, it speaks the MCP Apps postMessage protocol (ui/initialize,
+  ui/notifications/tool-result, ui/update-model-context) without an SDK, so the page
+  loads nothing but hero portraits.
 -->
 <style>
 :root {
@@ -125,9 +127,8 @@ button:disabled { opacity: 0.4; cursor: default; }
       <div class="drop"><h2>Leave out</h2><ul id="dropped"></ul></div>
     </div>
     <div class="actions">
-      <button id="send" type="button">Send to Claude</button>
       <button id="back" type="button" style="background: var(--surface)">Undo last</button>
-      <span class="status" id="sent"></span>
+      <span class="status" id="saved"></span>
     </div>
     <div class="fallback" id="fallback" hidden></div>
   </section>
@@ -141,12 +142,13 @@ const SWIPE_FRACTION = 0.3; // of the card's width, to count as a swipe on relea
 const FLICK_SPEED = 0.6; // px/ms: a fast flick counts even when short
 
 const els = Object.fromEntries(
-  ["progress", "status", "deck", "stack", "drop", "undo", "keep", "done", "kept", "dropped", "send", "back", "sent", "fallback"]
+  ["progress", "status", "deck", "stack", "drop", "undo", "keep", "done", "kept", "dropped", "back", "saved", "fallback"]
     .map((id) => [id, document.getElementById(id)]),
 );
 let candidates = [];
 let verdicts = []; // "keep" | "drop", one per swiped candidate, in order
-let sent = false;
+let hostCapabilities = {}; // from the ui/initialize result
+let saves = 0; // a save that finishes after a newer one (or an undo) is ignored
 let animating = false;
 
 function cardFor(hero) {
@@ -184,9 +186,7 @@ function render() {
   els.deck.hidden = finished;
   els.done.hidden = !finished;
   els.progress.textContent = finished ? `${candidates.length} / ${candidates.length}` : `${index + 1} / ${candidates.length}`;
-  els.undo.disabled = index === 0 || sent;
-  els.back.disabled = sent;
-  els.send.disabled = sent;
+  els.undo.disabled = index === 0;
   if (finished) return renderSummary();
   const cards = candidates.slice(index, index + 3).map(cardFor);
   cards.forEach((card, depth) => {
@@ -222,7 +222,7 @@ function setStamps(card, dx) {
 
 // Fly the top card off to one side, then record the verdict and redraw.
 function decide(verdict, card = els.stack.querySelector(".card.top")) {
-  if (!card || animating || sent) return;
+  if (!card || animating) return;
   animating = true;
   const dir = verdict === "keep" ? 1 : -1;
   card.classList.remove("dragging");
@@ -233,14 +233,17 @@ function decide(verdict, card = els.stack.querySelector(".card.top")) {
     animating = false;
     verdicts.push(verdict);
     render();
+    if (verdicts.length === candidates.length) save();
   };
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
   else card.addEventListener("transitionend", finish, { once: true });
 }
 
 function undo() {
-  if (!verdicts.length || animating || sent) return;
+  if (!verdicts.length || animating) return;
   verdicts.pop();
+  saves++; // the saved verdicts no longer stand; deciding the card again saves anew
+  els.saved.textContent = "";
   els.fallback.hidden = true;
   render();
 }
@@ -248,7 +251,7 @@ function undo() {
 function attachDrag(card) {
   let start = null;
   card.addEventListener("pointerdown", (event) => {
-    if (animating || sent) return;
+    if (animating) return;
     start = { x: event.clientX, y: event.clientY, t: event.timeStamp, id: event.pointerId };
     card.setPointerCapture(event.pointerId);
     card.classList.add("dragging");
@@ -277,7 +280,7 @@ function attachDrag(card) {
   card.addEventListener("pointercancel", release);
 }
 
-// The message Claude reads as the user's next turn.
+// What Claude reads in its context on the user's next message.
 function verdictText() {
   const list = (verdict) => {
     const names = candidates
@@ -288,22 +291,28 @@ function verdictText() {
   return `Borderline hero verdicts from the swipe cards. Keep: ${list("keep")}. Leave out: ${list("drop")}.`;
 }
 
-async function send() {
-  if (sent) return;
+// Save the verdicts as model context. Each update replaces the last, so an undo and a new
+// decision just save again. Nothing is put in the chat box: the user types "go".
+async function save() {
+  const attempt = ++saves;
   const text = verdictText();
-  els.send.disabled = true;
-  els.sent.textContent = "Sending…";
+  const names = (verdict) =>
+    candidates
+      .filter((_, i) => verdicts[i] === verdict)
+      .map((c) => ({ hero: c.name, category: c.category }));
+  els.saved.textContent = "Saving…";
+  els.fallback.hidden = true;
   try {
-    // Sent even when the host didn't advertise `message`: the error path covers a refusal.
-    const result = await request("ui/message", { role: "user", content: [{ type: "text", text }] });
-    if (result?.isError) throw new Error("refused");
-    sent = true;
-    els.sent.textContent = "Sent to Claude.";
-    els.fallback.hidden = true;
-    render();
+    if (!hostCapabilities.updateModelContext) throw new Error("unsupported");
+    await request("ui/update-model-context", {
+      content: [{ type: "text", text }],
+      structuredContent: { kept: names("keep"), dropped: names("drop") },
+    });
+    if (attempt !== saves) return;
+    els.saved.textContent = "Preferences saved. Type go to continue.";
   } catch {
-    els.send.disabled = false;
-    els.sent.textContent = "Couldn't send it. Paste this into the chat:";
+    if (attempt !== saves) return;
+    els.saved.textContent = "Couldn't save them here. Tell Claude:";
     els.fallback.textContent = text;
     els.fallback.hidden = false;
   }
@@ -317,9 +326,9 @@ function show(result) {
   }
   candidates = data.candidates;
   verdicts = [];
-  sent = false;
+  saves++;
   els.status.hidden = true;
-  els.sent.textContent = "";
+  els.saved.textContent = "";
   els.fallback.hidden = true;
   render();
 }
@@ -328,7 +337,6 @@ els.drop.addEventListener("click", () => decide("drop"));
 els.keep.addEventListener("click", () => decide("keep"));
 els.undo.addEventListener("click", undo);
 els.back.addEventListener("click", undo);
-els.send.addEventListener("click", send);
 document.addEventListener("keydown", (event) => {
   if (!candidates.length) return;
   if (event.key === "ArrowRight") decide("keep");
@@ -383,7 +391,10 @@ request("ui/initialize", {
   appCapabilities: { availableDisplayModes: ["inline"] },
   protocolVersion: "2026-01-26",
 })
-  .then(() => notify("ui/notifications/initialized", {}))
+  .then((result) => {
+    hostCapabilities = result?.hostCapabilities ?? {};
+    notify("ui/notifications/initialized", {});
+  })
   .catch(() => {
     els.status.textContent = "This host couldn't show the swipe cards; answer keep or leave out for each hero in the chat.";
   });

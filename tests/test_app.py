@@ -209,7 +209,7 @@ async def test_borderline_heroes_return_cards_for_the_app_and_a_prompt_for_the_m
     }
     assert axe["name"] == "Axe"
     text = result.content[0].text
-    assert "Rubick (Pos 4 · B)" in text and "next message" in text
+    assert "Rubick (Pos 4 · B)" in text and "type 'go'" in text
 
 
 @pytest.mark.anyio
@@ -237,4 +237,5 @@ async def test_the_swipe_app_resource_declares_the_portrait_cdn(connect):
     assert content.meta["ui"]["csp"]["resourceDomains"] == [
         "https://cdn.steamstatic.com"
     ]
-    assert "ui/initialize" in content.text and "ui/message" in content.text
+    assert "ui/initialize" in content.text
+    assert "ui/update-model-context" in content.text
