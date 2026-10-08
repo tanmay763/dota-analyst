@@ -39,6 +39,7 @@ TOOLS = [
     "stratz_fetch",
     "stratz_aggregate",
     "build_hero_grid",
+    "review_borderline_heroes",
 ]
 
 
@@ -181,3 +182,59 @@ async def test_the_app_resource_declares_the_portrait_cdn(connect):
         "https://cdn.steamstatic.com"
     ]
     assert "ui/initialize" in content.text and "ui/open-link" in content.text
+
+
+@pytest.mark.anyio
+async def test_borderline_heroes_return_cards_for_the_app_and_a_prompt_for_the_model(
+    connect, stratz
+):
+    _, queue = stratz
+    queue.append((200, {"data": HEROES_DATA}))
+    candidates = [
+        {"hero": "rubick", "category": "Pos 4 · B", "note": "52% win rate, 1% picks"},
+        {"hero": "Axe", "category": "Offlane · A", "note": "thin sample"},
+    ]
+    async with connect() as client:
+        result = await client.call_tool(
+            "review_borderline_heroes", {"candidates": candidates}
+        )
+    assert not result.is_error
+    (rubick, axe) = result.structured_content["candidates"]
+    assert rubick == {
+        "hero_id": 86,
+        "name": "Rubick",
+        "short_name": "rubick",
+        "category": "Pos 4 · B",
+        "note": "52% win rate, 1% picks",
+    }
+    assert axe["name"] == "Axe"
+    text = result.content[0].text
+    assert "Rubick (Pos 4 · B)" in text and "next message" in text
+
+
+@pytest.mark.anyio
+async def test_unknown_borderline_heroes_show_nothing(connect, stratz):
+    _, queue = stratz
+    queue.append((200, {"data": HEROES_DATA}))
+    async with connect() as client:
+        result = await client.call_tool(
+            "review_borderline_heroes",
+            {"candidates": [{"hero": "Pudgee", "category": "S", "note": ""}]},
+        )
+    assert result.is_error and "Nothing was shown" in result.content[0].text
+
+
+@pytest.mark.anyio
+async def test_the_swipe_app_resource_declares_the_portrait_cdn(connect):
+    async with connect() as client:
+        tools = (await client.list_tools()).tools
+        review = next(t for t in tools if t.name == "review_borderline_heroes")
+        assert review.meta["ui"]["resourceUri"] == "ui://hero-swipe"
+        assert review.meta["ui/resourceUri"] == "ui://hero-swipe"
+        resource = await client.read_resource("ui://hero-swipe")
+    (content,) = resource.contents
+    assert content.mime_type == "text/html;profile=mcp-app"
+    assert content.meta["ui"]["csp"]["resourceDomains"] == [
+        "https://cdn.steamstatic.com"
+    ]
+    assert "ui/initialize" in content.text and "ui/message" in content.text

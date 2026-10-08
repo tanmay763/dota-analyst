@@ -1,6 +1,6 @@
 [project]
 name = "dota-analyst"
-version = "0.1.2"
+version = "0.2.0"
 description = "Dota 2 analysis from Stratz for Claude: a plugin and its MCP server"
 readme = "README.md"
 requires-python = ">=3.13"

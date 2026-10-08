@@ -93,6 +93,39 @@ def resolve_layouts(layouts: list[dict], heroes: Heroes) -> list[dict]:
     return resolved
 
 
+MAX_BORDERLINE = 5  # a swipe stack longer than this stops being a quick check
+
+
+def resolve_candidates(candidates: list[dict], heroes: Heroes) -> list[dict]:
+    """Borderline heroes by name -> swipe cards (ADR 0011), reporting every unknown name."""
+    if not isinstance(candidates, list) or not candidates:
+        raise GridError("Give at least one borderline hero: [{hero, category, note}].")
+    if len(candidates) > MAX_BORDERLINE:
+        raise GridError(
+            f"Give at most {MAX_BORDERLINE} borderline heroes; settle the rest yourself."
+        )
+    unknown, cards = [], []
+    for candidate in candidates:
+        try:
+            hero_id = heroes.resolve(candidate.get("hero", ""))
+        except GridError as exc:
+            unknown.append(str(exc))
+            continue
+        cards.append(
+            {
+                "hero_id": hero_id,
+                **heroes.card(hero_id),
+                "category": str(candidate.get("category", "")),
+                "note": str(candidate.get("note", "")),
+            }
+        )
+    if unknown:
+        raise GridError("Nothing was shown. " + " ".join(unknown))
+    if len({c["hero_id"] for c in cards}) < len(cards):
+        raise GridError("Each borderline hero can appear only once.")
+    return cards
+
+
 def encode(layouts: list[dict]) -> str:
     """Layouts of hero IDs -> the URL-safe blob of a download link."""
     text = json.dumps(layouts, separators=(",", ":"), ensure_ascii=False)

@@ -166,6 +166,7 @@ async def tools(base: str, access: str, cookbook_section: str | None) -> None:
         expected = sorted(
             [
                 "build_hero_grid",
+                "review_borderline_heroes",
                 "stratz_aggregate",
                 "stratz_cookbook",
                 "stratz_fetch",
@@ -237,6 +238,15 @@ async def tools(base: str, access: str, cookbook_section: str | None) -> None:
                     }
                 ]
             },
+        )
+        review = await client.call_tool(
+            "review_borderline_heroes",
+            {"candidates": [{"hero": "pudge", "category": "Top", "note": "e2e check"}]},
+        )
+        check(
+            "borderline heroes become swipe cards",
+            not review.is_error
+            and review.structured_content["candidates"][0]["short_name"] == "pudge",
         )
         if not check("build a hero grid", not grid.is_error):
             return
